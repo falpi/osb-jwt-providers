@@ -51,7 +51,11 @@
 <nav>
 <ol>
   <li><a href="#overview">Overview</a></li>
-  <li><a href="#architecture">Architecture</a></li>
+  <li><a href="#architecture">Architecture</a>
+    <ol>
+      <li><a href="#arch-wls">Why the outbound provider is a security provider</a></li>
+    </ol>
+  </li>
   <li><a href="#install">Installation</a></li>
   <li><a href="#config-project">Configuration project and resources</a></li>
   <li><a href="#validation">XML validation</a></li>
@@ -126,9 +130,18 @@
 <figure><img src="images/architecture.svg" alt="Architecture"><figcaption>Figure 1 – Runtime components and configuration resources.</figcaption></figure>
 <ul>
   <li><b>Inbound</b>: the proxy service uses HTTP transport with <i>Custom Authentication</i>. OSB extracts the configured header (normally <code>Authorization</code>) and calls <code>assertIdentity()</code> of the identity asserter registered for the token type. The returned user name becomes the security principal of the pipeline, so all the usual WebLogic tools (users, groups, roles, access policies on proxy services) keep working.</li>
-  <li><b>Outbound</b>: the business service uses HTTP transport with <i>Custom Authentication</i> and the class <code>org.falpi.osb.security.providers.CustomOutboundAuthenticator</code>. OSB instantiates that class once per business service and calls <code>doOutboundAuthentication()</code> just before sending each request. The configured instance in the realm supplies MBean settings and caches to these per-service instances.</li>
+  <li><b>Outbound</b>: the business service uses HTTP transport with <i>Custom Authentication</i> and the class <code>org.falpi.osb.security.providers.CustomOutboundAuthenticator</code>. OSB instantiates that class once per business service and calls <code>doOutboundAuthentication()</code> just before sending each request. The configured instance in the realm supplies MBean settings and caches to these per-service instances (see §2.1).</li>
   <li><b>Configuration</b>: XML resources and mapping service accounts live in an ordinary OSB project (in this code base the <code>OAUTH2</code> project) and are read at runtime through the OSB configuration API, so they are deployed, versioned and promoted like any other OSB artefact and can be changed without restarting the server.</li>
 </ul>
+<h3 id="arch-wls">2.1 Why the outbound provider is a WebLogic security provider</h3>
+<p>WebLogic security providers are normally used to implement inbound security mechanisms. The outbound provider uses the same infrastructure for a different purpose. For business services with <i>Custom Authentication</i> the OSB HTTP transport only needs a class implementing <code>com.bea.wli.sb.transports.http.OutboundAuthentication</code>: OSB instantiates it by name and provides no configuration mechanism. Rather than building one (property files, a custom console, OSB resources for technical settings), the same class is also registered as a WebLogic authentication provider (<code>AuthenticationProviderV2</code>) with its own MBean definition, which gives it the standard capabilities of WebLogic and of its console:</p>
+<ul>
+  <li>typed attributes with defaults, legal values and descriptions, edited in the console (<i>Provider Specific</i> tab) and available through WLST and JMX;</li>
+  <li>persistence in <code>config.xml</code> under the domain change management (Lock &amp; Edit, Activate), the same configuration on every server of the domain, dynamic attributes read again at every request;</li>
+  <li>a lifecycle managed by the server (<code>initialize</code> at boot, <code>shutdown</code>) and access to realm and domain services (realm, domain and server names, domain encryption used by <code>ENCRYPTION_HELPER</code>);</li>
+  <li>one instance per server that holds the caches shared by the per-business-service instances (access tokens, signing keys, OSB resources).</li>
+</ul>
+<p>The provider never takes part in authentication: <code>getLoginModuleConfiguration()</code>, <code>getAssertionModuleConfiguration()</code>, <code>getIdentityAsserter()</code> and <code>getPrincipalValidator()</code> return <code>null</code> (<code>CustomOutboundAuthenticator.java:149-166</code>), so its position and control flag in the realm are irrelevant. The instances created by OSB for each business service borrow parameters and caches from the realm instance through a static registry, which is why exactly one outbound provider is allowed (§12).</p>
 
 <!-- ================================================================================================ -->
 <h2 id="install">3. Installation</h2>
@@ -147,7 +160,7 @@
   <li><b>Inbound</b>: type <code>CustomInboundAuthenticator</code>. Use <i>Reorder</i> to move it to the top of the list, as for any identity asserter that must handle a header before the default ones. More than one inbound instance may exist (e.g. with different policy files); the token types with suffix <code>#1</code>/<code>#2</code> let each proxy select which instance asserts its tokens.</li>
   <li><b>Outbound</b>: type <code>CustomOutboundAuthenticator</code>. <b>Exactly one</b> instance is allowed: a second one makes the server stop at boot (see <a href="#threading">§12</a>). The provider takes no part in user logins (it returns no login module), so its position and control flag are not relevant; leave the control flag at <i>OPTIONAL</i>.</li>
 </ul>
-<p>Then open each provider, tab <i>Configuration → Provider Specific</i>, set the parameters (§7.2 and §8.2), save and activate the changes. The attributes are shown in the same order as in the MBean definition files thanks to a customised BeanInfo (§13.4).</p>
+<p>Then open each provider, tab <i>Configuration → Provider Specific</i>, set the parameters (§7.2 and §8.2), save and activate the changes. The attributes are shown in the same order as in the MBean definition files thanks to a customised BeanInfo generated from a patched MBeanMaker template (§13.4).</p>
 <div class="note">Most attributes are dynamic: their value is read again at every request, so changes in the console take effect without restart. <code>KERBEROS_CONFIGURATION</code> is read only at initialization.</div>
 
 <!-- ================================================================================================ -->
@@ -705,13 +718,14 @@ ${current.epoch}+300</pre>
       &lt;case value="14.1.2"&gt; ... jdk17  / C:/Oracle/Middleware/14.1.2 ...</pre>
 <ol>
   <li><b>clean</b> – removes <code>build/</code>.</li>
-  <li><b>build.MTF</b> – extracts <code>BeanInfoBinder.template</code> from the WebLogic beangen module and injects <code>res/BeanInfoBinder-head.template</code> and <code>-body.template</code>: the generated BeanInfo reorders the property descriptors following the MDF, so the console shows the attributes in the XML order.</li>
+  <li><b>build.MTF</b> – extracts <code>BeanInfoBinder.template</code> from the WebLogic beangen module and injects <code>res/BeanInfoBinder-head.template</code> and <code>-body.template</code>: the generated BeanInfo reorders the property descriptors following the MDF, so the console shows the attributes in the XML order (see below).</li>
   <li><b>build.MDF</b> – WebLogicMBeanMaker generates the MBean interfaces and the Impl stubs from the two MDF files.</li>
   <li><b>build.MJF</b> – MBeanMaker generates MBeanImpl/BeanInfo/factory and builds <code>build/osb-jwt-providers.jar</code>.</li>
   <li><b>patch</b> – injects <code>WLSUtils.encryptionHelper</code> at the beginning of the setter of <code>ENCRYPTION_HELPER</code> in <code>CustomOutboundAuthenticatorMBeanImpl</code>.</li>
   <li><b>rebuild</b> – recompiles the patched sources and rebuilds the jar.</li>
   <li><b>deploy</b> – creates <code>deploy/osb-jwt-providers-1.0.0.&lt;date&gt;-fmw_&lt;ver&gt;.jar</code> (merging <code>lib/*-fmw_&lt;ver&gt;.jar</code> only when <code>mergeLibraries=true</code>; osb-commons is otherwise installed separately, excluding sources unless <code>embedSources=true</code>) and copies it to <code>mbeantypes/osb-jwt-providers-1.0.0.jar</code> (name and version from <code>packageName</code> / <code>packageVersion</code>, <code>build.xml:142-143</code>); the manifest records package and provider versions (§13.9). The user running the build needs write permission on <code>mbeantypes</code> (§15).</li>
 </ol>
+<p><b>Console attribute ordering (template injection).</b> The BeanInfo classes generated by MBeanMaker return the property descriptors in alphabetical order, so by default the console shows the provider attributes alphabetically, regardless of their order in the MDF. Since its first versions the project changes this behaviour by modifying the code generator itself. MBeanMaker builds the BeanInfo classes from internal code generation templates packaged in <code>com.bea.core.beangen.jar</code>; the one involved is <code>weblogic/management/internal/mbean/BeanInfoBinder.template</code>, written in the template language of the generator (expressions such as <code>$class.getClassName()</code>). The <code>build.MTF</code> target extracts that template into <code>build/</code>, under the same relative path, and injects <code>res/BeanInfoBinder-head.template</code> (additional imports, after the <code>BeanInfoHelper</code> import) and <code>res/BeanInfoBinder-body.template</code> (an override of <code>getPropertyDescriptors()</code>, after the bean descriptor method). MBeanMaker then runs with <code>build/</code> as working directory and uses the patched template instead of the packaged one. The injected method builds the standard descriptors, reads at runtime the MDF packaged in the jar next to the class (its name is derived from the BeanInfo class name, so the same template serves both providers) and returns <code>Name</code> and <code>Realm</code> first, followed by the attributes in the MDF order, dropping those that are not exposed as properties. Oracle does not document this mechanism: identifying the template, the injection points and the lookup of the patched copy required the reverse engineering of the MBeanMaker templating. A second, simpler customization patches the generated source of the <code>ENCRYPTION_HELPER</code> setter (<code>patch</code> and <code>rebuild</code> targets). If the reordering fails the error is only printed and the descriptors may be incomplete: see the issues document.</p>
 <p>The osb-commons dependency is taken from <code>lib/</code> by the pattern <code>*-fmw_${weblogicVersion}.jar</code>: build CommonLib for the same target first and copy its jar from <code>CommonLib/deploy</code> into <code>lib/</code>. The CommonLib build only produces the jar in <code>CommonLib/deploy</code>: on the server it is installed once into <code>mbeantypes</code> (§3.1).</p>
 
 <h3 id="dev-targets">13.5 Targets and compatibility</h3>
