@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+            elementFormDefault="unqualified" attributeFormDefault="unqualified">
+    
+   <!-- ################################################################################ -->
+   <!-- TIPI                                                                             -->
+   <!-- ################################################################################ -->
+   
+   <xsd:simpleType name="authMethod">
+      <xsd:restriction base="xsd:string">
+         <xsd:enumeration value="secret"/>
+         <xsd:enumeration value="assertion"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+   
+   <xsd:complexType name="providerItemType">
+      <xsd:sequence>
+         <xsd:element name="item" type="resourceItemType" maxOccurs="unbounded"/>
+      </xsd:sequence>
+      <xsd:attribute name="name" use="required" type="xsd:string"/>
+   </xsd:complexType>
+   
+   <xsd:complexType name="resourceItemType">
+      <xsd:attribute name="name" use="required" type="xsd:string"/>
+      <xsd:attribute name="value" use="required" type="xsd:string"/>
+      <xsd:attribute name="note" use="optional" type="xsd:string"/>
+   </xsd:complexType>
+   
+   <!-- ################################################################################ -->
+   <!-- ELEMENTI                                                                         -->
+   <!-- ################################################################################ -->
+   
+   <xsd:element name="resourceMappings">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element name="provider" type="providerItemType" maxOccurs="unbounded">
+              <!-- dichiara che il valore mappato deve essere univoco all'interno del singolo provider -->
+              <xsd:key name="resourceValueKey">
+                <xsd:selector xpath="item"/>
+                <xsd:field xpath="@value"/>
+              </xsd:key>
+            </xsd:element>
+         </xsd:sequence>
+      </xsd:complexType>
+      
+      <!-- dichiara che l'identificativo dei provider deve essere univoco -->
+      <xsd:key name="providerNameKey">
+         <xsd:selector xpath="provider"/>
+         <xsd:field xpath="@name"/>
+      </xsd:key>
+      <!-- dichiara che il nome delle risorse deve essere univoco in tutto il file, a prescindere dal provider -->
+      <xsd:key name="resourceNameKey">
+         <xsd:selector xpath="provider/item"/>
+         <xsd:field xpath="@name"/>
+      </xsd:key>
+   </xsd:element>
+      
+</xsd:schema>

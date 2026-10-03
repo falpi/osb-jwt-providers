@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 700" width="900" height="700" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#44546a"/>
+    </marker>
+    <style>
+      .t{fill:#1f2937}.s{fill:#4b5563;font-size:11.5px}.h{font-weight:600}
+      .st{fill:#e8f0fb;stroke:#4a78b5}.ok{fill:#eef6ee;stroke:#4c9a52}.ko{fill:#fdecec;stroke:#c24a4a}
+      .ln{stroke:#44546a;stroke-width:1.6;fill:none}.kl{stroke:#c24a4a;stroke-width:1.2;fill:none;stroke-dasharray:4 3}
+    </style>
+  </defs>
+  <rect x="5" y="5" width="890" height="690" rx="10" fill="#fff" stroke="#d1d5db"/>
+  <text x="24" y="32" class="t h" font-size="15">Inbound JWT assertion (manageJwtAuthInbound)</text>
+
+  <g>
+    <rect x="40" y="50" width="520" height="46" rx="6" class="st"/>
+    <text x="54" y="70" class="t h">1. Parse token</text>
+    <text x="54" y="87" class="s">prepareToken(): Nimbus SignedJWT.parse – read kid (header) and iss (payload), not yet trusted</text>
+
+    <rect x="40" y="112" width="520" height="46" rx="6" class="st"/>
+    <text x="54" y="132" class="t h">2. Select issuer and provider</text>
+    <text x="54" y="149" class="s">InboundPolicies: issuers/item with issuerURL == iss (Java compare) → provider, identity_claim</text>
+
+    <rect x="40" y="174" width="520" height="46" rx="6" class="st"/>
+    <text x="54" y="194" class="t h">3. Load resource mappings</text>
+    <text x="54" y="211" class="s">validateResource(JWT_RESOURCE_MAPPING_PATH) → Context "resource_mappings"</text>
+
+    <rect x="40" y="236" width="520" height="46" rx="6" class="st"/>
+    <text x="54" y="256" class="t h">4. Signing key</text>
+    <text x="54" y="273" class="s">prepareKey(): cache jwksURL#kid (keys_cache_ttl) or download JWKS, RSA "sig" key</text>
+
+    <rect x="40" y="298" width="520" height="46" rx="6" class="st"/>
+    <text x="54" y="318" class="t h">5. Verify</text>
+    <text x="54" y="335" class="s">alg must be RS256; Nimbus verify: signature, exp and nbf (required)</text>
+
+    <rect x="40" y="360" width="520" height="46" rx="6" class="st"/>
+    <text x="54" y="380" class="t h">6. client_id → identity</text>
+    <text x="54" y="397" class="s">claim[identity_claim] → reverseTranslateResource (client_id → logical identity)</text>
+
+    <rect x="40" y="422" width="520" height="46" rx="6" class="st"/>
+    <text x="54" y="442" class="t h">7. Identity enabled?</text>
+    <text x="54" y="459" class="s">identities/provider[@name]/item[@identity] → username (realm user), optional profile</text>
+
+    <rect x="40" y="484" width="520" height="46" rx="6" class="st"/>
+    <text x="54" y="504" class="t h">8. Audience</text>
+    <text x="54" y="521" class="s">profile audience (else provider audience) → translateResource → must be in "aud"</text>
+
+    <rect x="40" y="546" width="520" height="46" rx="6" class="ok"/>
+    <text x="54" y="566" class="t h">9. Assert identity</text>
+    <text x="54" y="583" class="s">custom headers, debugging properties, INFO line → CallbackHandler(username)</text>
+  </g>
+  <g class="ln">
+    <path d="M300 96 V110" marker-end="url(#a)"/><path d="M300 158 V172" marker-end="url(#a)"/>
+    <path d="M300 220 V234" marker-end="url(#a)"/><path d="M300 282 V296" marker-end="url(#a)"/>
+    <path d="M300 344 V358" marker-end="url(#a)"/><path d="M300 406 V420" marker-end="url(#a)"/>
+    <path d="M300 468 V482" marker-end="url(#a)"/><path d="M300 530 V544" marker-end="url(#a)"/>
+  </g>
+
+  <g font-size="12">
+    <rect x="610" y="50" width="260" height="542" rx="8" class="ko"/>
+    <text x="626" y="74" class="t h">IdentityAssertionException</text>
+    <text x="626" y="104" class="s">1 Token parsing error</text>
+    <text x="626" y="118" class="s">   Token issuer error (missing iss)</text>
+    <text x="626" y="166" class="s">2 Issuer policies error (iss)</text>
+    <text x="626" y="228" class="s">3 Resource mappings error</text>
+    <text x="626" y="290" class="s">4 Keys retrieving error</text>
+    <text x="626" y="352" class="s">5 Token validation error</text>
+    <text x="626" y="414" class="s">6 Identity mapping error</text>
+    <text x="626" y="428" class="s">   (provider:client_id)</text>
+    <text x="626" y="476" class="s">7 Identity policies error (identity)</text>
+    <text x="626" y="538" class="s">8 Audience error (audience)</text>
+    <text x="626" y="574" class="s">→ HTTP 401 to the consumer</text>
+  </g>
+  <g class="kl">
+    <path d="M560 73 H608"/><path d="M560 135 H608"/><path d="M560 197 H608"/><path d="M560 259 H608"/>
+    <path d="M560 321 H608"/><path d="M560 383 H608"/><path d="M560 445 H608"/><path d="M560 507 H608"/>
+  </g>
+  <text x="40" y="630" class="s">Before step 1: token type check (CIA.*), Basic/Bearer detection, JWT_AUTH / BASIC_AUTH switches (assertIdentityAsynchImpl).</text>
+  <text x="40" y="648" class="s">BASIC path: credentials are checked against the embedded LDAP authenticator (manageBasicAuthInbound) – no policies involved.</text>
+  <text x="40" y="666" class="s">All lookups that use token data compare values in Java: token values are never concatenated into XPath expressions.</text>
+</svg>

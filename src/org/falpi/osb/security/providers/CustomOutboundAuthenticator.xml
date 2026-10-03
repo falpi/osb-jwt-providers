@@ -1,0 +1,224 @@
+<?xml version="1.0" ?>
+<!DOCTYPE MBeanType SYSTEM "commo.dtd">
+<!--
+##################################################################################################################################
+VERSIONING
+##################################################################################################################################
+$Revision: 2059 $
+$Date: 2026-10-02 23:37:12 +0200 (Fri, 02 Oct 2026) $
+##################################################################################################################################
+-->
+<MBeanType
+ Name          = "CustomOutboundAuthenticator"
+ Package       = "org.falpi.osb.security.providers"
+ Extends       = "weblogic.management.security.authentication.Authenticator"
+ PersistPolicy = "OnUpdate"
+>
+
+   <MBeanAttribute
+  Name          = "ProviderClassName"
+  Type          = "java.lang.String"
+  Preprocessor  = "weblogic.management.configuration.LegalHelper.checkClassName(value)"
+  Default       = "&quot;org.falpi.osb.security.providers.CustomOutboundAuthenticator&quot;"
+  Writeable     = "false"
+ />
+
+   <MBeanAttribute
+  Name          = "Description"
+  Type          = "java.lang.String"
+  Default       = "&quot;Custom Outbound Authenticator&quot;"
+  Writeable     = "false"
+ />
+
+   <MBeanAttribute
+  Name          = "Version"
+  Type          = "java.lang.String"
+  Default       = "&quot;1.0.0&quot;"   
+  Writeable     = "false"
+ />
+ 
+    <MBeanAttribute  
+  Name 		= "PROVIDER_TYPE"
+  Type 		= "java.lang.String"
+  LegalValues   = "OUTBOUND" 
+  Default 	= "&quot;OUTBOUND&quot;"
+  Description   = "Provider type"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+ 
+    <MBeanAttribute  
+  Name 		= "LOGGING_LINES"
+  Type 		= "java.lang.Integer"
+  Default 	= "10"
+  Description   = "Maximum stacktrace rows to be logged"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+    <MBeanAttribute  
+  Name 		= "LOGGING_LEVEL"
+  Type 		= "java.lang.String"
+  LegalValues   = "TRACE,DEBUG,INFO,WARN,ERROR" 
+  Default 	= "&quot;INFO&quot;"
+  Description   = "Minimum level log messages that end up in the logging file"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+    <MBeanAttribute  
+  Name 		= "LOGGING_INFO"
+  Type 		= "java.lang.String"
+  Default 	= "&quot;Service: ${osb.service.name}, Identity: ${identity}&quot;"
+  Description   = "Details logged at the conclusion of each request"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+    <MBeanAttribute  
+  Name 		= "THREADING_MODE"
+  Type 		= "java.lang.String"
+  LegalValues   = "SERIAL,PARALLEL" 
+  Default 	= "&quot;PARALLEL&quot;"
+  Description   = "Enable/Disable requests parallelism"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+  
+    <MBeanAttribute  
+  Name 		= "REQUESTS_SSL_VERIFY"
+  Type 		= "java.lang.String"
+  LegalValues   = "ENABLE,DISABLE" 
+  Default 	= "&quot;ENABLE&quot;"
+  Description   = "Http requests SSL enforcement"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+ 
+    <MBeanAttribute  
+  Name 		= "REQUESTS_CONN_TIMEOUT"
+  Type 		= "java.lang.String"
+  LegalValues   = "0,5,10,15,20,25,30"
+  Default 	= "&quot;5&quot;"
+  Description   = "Http requests connection timeout (Seconds)"
+  LegalNull     = "false"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+    <MBeanAttribute  
+  Name 		= "REQUESTS_READ_TIMEOUT"
+  Type 		= "java.lang.String"
+  LegalValues   = "0,5,10,15,20,25,30"
+  Default 	= "&quot;5&quot;"
+  Description   = "Http requests response timeout (Seconds)"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+  
+    <MBeanAttribute  
+  Name 		= "REQUESTS_PROXY_MODE"
+  Type 		= "java.lang.String"
+  LegalValues   = "DIRECT,ANONYMOUS,BASIC,NTLM,KERBEROS" 
+  Default 	= "&quot;DIRECT&quot;"
+  Description   = "Http requests require proxy mediation"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+ 
+    <MBeanAttribute  
+  Name 		= "REQUESTS_PROXY_PATH"   
+  Type 		= "java.lang.String"
+  Description   = "OSB path for the proxy server"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+    <MBeanAttribute  
+  Name 		= "JWT_POLICIES_PATH"
+  Type 		= "java.lang.String"
+  Description   = "OSB path for the outbound security policies XML"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+    <MBeanAttribute  
+  Name 		= "JWT_TEMPLATES_PATH"
+  Type 		= "java.lang.String"
+  Description   = "OSB path for token templates XML"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+ 
+    <MBeanAttribute  
+  Name 		= "JWT_CLIENT_KEYS_PATH"
+  Type 		= "java.lang.String"
+  Description   = "OSB path for the XML resource with CLIENT_ASSERTION identities"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+    <MBeanAttribute  
+  Name 		= "JWT_CLIENT_SECRETS_PATH"
+  Type 		= "java.lang.String"
+  Description   = "OSB path for the mapping service account with CLIENT_SECRET identities"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+      <MBeanAttribute  
+  Name 		= "JWT_HEADER_SECRETS_PATH"
+  Type 		= "java.lang.String"
+  Description   = "OSB path for the mapping service account with secure header values"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+ 
+    <MBeanAttribute  
+  Name 		= "JWT_RESOURCE_MAPPING_PATH"
+  Type 		= "java.lang.String"
+  Description   = "OSB mapping service account used to translate resource identifiers"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />  
+    <MBeanAttribute  
+  Name 		= "CUSTOM_REQUEST_HEADERS"
+  Type 		= "java.util.Properties"
+  Description   = "Each line is treated as a custom http request header"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+ 
+    <MBeanAttribute  
+  Name 		= "DEBUGGING_ASSERTION"
+  Type 		= "java.lang.String[]"
+  Description   = "Logging filter assertion (javascript returning boolean)"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ /> 
+ 
+    <MBeanAttribute  
+  Name 		= "DEBUGGING_PROPERTIES"
+  Type 		= "java.lang.String[]"
+  Description   = "Properties/espressions to be logged"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+  
+    <MBeanAttribute  
+  Name 		= "KERBEROS_CONFIGURATION"
+  Type 		= "java.lang.String[]"
+  Description   = "Configuration for kerberos authentication"
+  Writeable 	= "true"
+  Dynamic       = "true"
+ />
+
+    <MBeanAttribute  
+  Name 		= "ENCRYPTION_HELPER"
+  Type 		= "java.lang.String"
+  Description   = "Helper utility to encrypt secrets"
+  Writeable 	= "true"
+  Dynamic       = "true" 
+ />
+
+</MBeanType>

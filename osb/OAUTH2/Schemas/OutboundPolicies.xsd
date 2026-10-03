@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+            elementFormDefault="unqualified" attributeFormDefault="unqualified">
+            
+  <!-- ################################################################################ -->
+  <!-- TIPI                                                                             -->
+  <!-- ################################################################################ -->
+
+  <xsd:simpleType name="cacheTTLType">
+    <xsd:restriction base="xsd:int">
+      <xsd:minInclusive value="0"/>
+      <xsd:maxInclusive value="3600"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <xsd:simpleType name="booleanType">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="true|false"/>
+    </xsd:restriction>
+  </xsd:simpleType>  
+  
+  <xsd:simpleType name="methodType">
+    <xsd:restriction base="xsd:string">
+      <xsd:enumeration value="secret"/>
+      <xsd:enumeration value="assertion"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <xsd:simpleType name="providerType">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="[a-zA-Z0-9_\-]{3,16}"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <xsd:simpleType name="identityType">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="\S.*"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <xsd:simpleType name="nonEmptyStringType">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="\S.*"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <!-- attenzione, impossibile fissare la lunghezza massima del nome dell'header a 40 altrimenti si pianta jdeveloper -->
+  <xsd:simpleType name="headerNameType">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="[a-z\-]+"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+    
+  <!-- attenzione, impossibile fissare la lunghezza massima del nome dell'header a 40 altrimenti si pianta jdeveloper -->
+  <xsd:simpleType name="inlineHeaderType">
+    <xsd:restriction base="xsd:string">
+      <xsd:pattern value="[a-z\-]+:\S.*"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <xsd:complexType name="customHeaderType">
+    <xsd:attribute name="name" use="required" type="headerNameType"/>
+    <xsd:attribute name="value" use="required" type="nonEmptyStringType"/>
+  </xsd:complexType>
+  
+  <xsd:complexType name="secureHeaderType">
+    <xsd:attribute name="name" use="required" type="headerNameType"/>
+    <xsd:attribute name="key" use="required" type="nonEmptyStringType"/>
+  </xsd:complexType>
+  
+  <xsd:complexType name="abstractType">
+    <xsd:choice minOccurs="0" maxOccurs="unbounded">
+      <xsd:element name="customHeader" type="customHeaderType" minOccurs="0"/>
+      <xsd:element name="secureHeader" type="secureHeaderType" minOccurs="0"/>
+    </xsd:choice>
+    <xsd:attribute name="provider"          use="optional" type="providerType"/>
+    <xsd:attribute name="identity"          use="optional" type="identityType"/>
+    <xsd:attribute name="method"            use="optional" type="methodType"/>
+    <xsd:attribute name="scope"             use="optional" type="xsd:string"/>    
+    <xsd:attribute name="resource"          use="optional" type="xsd:string"/>
+    <xsd:attribute name="resource_mapped"   use="optional" type="booleanType" />
+    <xsd:attribute name="secret_request"    use="optional" type="xsd:string"/>
+    <xsd:attribute name="assertion_request" use="optional" type="xsd:string"/>
+    <xsd:attribute name="assertion_token"   use="optional" type="xsd:string"/>
+    <xsd:attribute name="token_cache_ttl"   use="optional" type="cacheTTLType"/>
+    <xsd:attribute name="token_cache_index" use="optional" type="xsd:string"/>
+    <xsd:attribute name="customHeader"      use="optional" type="inlineHeaderType"/>
+    <xsd:attribute name="secureHeader"      use="optional" type="inlineHeaderType"/>
+  </xsd:complexType>
+  
+  <xsd:complexType name="defaultType">
+    <xsd:complexContent>
+      <xsd:restriction base="abstractType">
+        <xsd:choice minOccurs="0" maxOccurs="unbounded">
+          <xsd:element name="customHeader" type="customHeaderType" minOccurs="0"/>
+          <xsd:element name="secureHeader" type="secureHeaderType" minOccurs="0"/>
+        </xsd:choice>
+        <xsd:attribute name="provider"          use="required" type="providerType"/>
+        <xsd:attribute name="identity"          use="required" type="identityType"/>
+        <xsd:attribute name="method"            use="required" type="methodType"/>
+        <xsd:attribute name="scope"             use="required" type="xsd:string"/>
+        <xsd:attribute name="resource"          use="required" type="xsd:string"/>
+        <xsd:attribute name="resource_mapped"   use="required" type="booleanType" />
+        <xsd:attribute name="secret_request"    use="required" type="xsd:string"/>
+        <xsd:attribute name="assertion_request" use="required" type="xsd:string"/>
+        <xsd:attribute name="assertion_token"   use="required" type="xsd:string"/>
+        <xsd:attribute name="token_cache_ttl"   use="required" type="cacheTTLType"/>
+        <xsd:attribute name="token_cache_index" use="required" type="xsd:string"/>
+      </xsd:restriction>
+    </xsd:complexContent>
+  </xsd:complexType>
+  
+  <xsd:complexType name="profileType">
+    <xsd:complexContent>
+      <xsd:extension base="abstractType">
+        <xsd:attribute name="name" use="required" type="nonEmptyStringType"/>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  
+  <xsd:complexType name="profileListType">
+    <xsd:sequence>
+      <xsd:element name="item" type="profileType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  
+  <xsd:complexType name="projectType">
+    <xsd:complexContent>
+      <xsd:extension base="profileType">
+        <xsd:attribute name="profile" use="optional" type="xsd:string"/>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  
+  <xsd:complexType name="projectListType">
+    <xsd:sequence>
+      <xsd:element name="item" type="projectType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  
+  <xsd:complexType name="endpointType">
+    <xsd:complexContent>
+      <xsd:extension base="profileType">
+        <xsd:attribute name="profile" use="optional" type="xsd:string"/>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+  
+  <xsd:complexType name="endpointListType">
+    <xsd:sequence>
+      <xsd:element name="item" type="endpointType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  
+  <!-- ################################################################################ -->
+  <!-- ELEMENTI                                                                         -->
+  <!-- ################################################################################ -->
+  
+  <xsd:element name="outboundPolicies">
+    <xsd:complexType>
+      <xsd:sequence>
+        <xsd:element name="defaults" type="defaultType" />
+        <xsd:element name="profiles" type="profileListType" />
+        <xsd:element name="projects" type="projectListType" />
+        <xsd:element name="endpoints" type="endpointListType"/>
+      </xsd:sequence>
+    </xsd:complexType>
+    
+    <!-- dichiara che il nome dei profili deve essere univoco -->
+    <xsd:key name="profileNameKey">
+       <xsd:selector xpath="profiles/item"/>
+       <xsd:field xpath="@name"/>
+    </xsd:key>
+    <!-- dichiara che il nome dei progetti deve essere univoco -->
+    <xsd:key name="projectNameKey">
+       <xsd:selector xpath="projects/item"/>
+       <xsd:field xpath="@name"/>
+    </xsd:key>    
+    <!-- dichiara che il nome degli endpoint deve essere univoco -->
+    <xsd:key name="endpointNameKey">
+       <xsd:selector xpath="endpoints/item"/>
+       <xsd:field xpath="@name"/>
+    </xsd:key>    
+    <!-- il nome del profilo nell'item dei project deve essere uno di quelli definiti nei profili -->
+    <xsd:keyref name="projectProfileRef" refer="profileNameKey">
+       <xsd:selector xpath="projects/item"/>
+       <xsd:field xpath="@profile"/>
+    </xsd:keyref>    
+    <!-- il nome del profilo nell'item degli endpoint deve essere uno di quelli definiti nei profili -->
+    <xsd:keyref name="endpointProfileRef" refer="profileNameKey">
+       <xsd:selector xpath="endpoints/item"/>
+       <xsd:field xpath="@profile"/>
+    </xsd:keyref>
+  </xsd:element>
+  
+</xsd:schema>

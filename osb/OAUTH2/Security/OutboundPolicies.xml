@@ -1,0 +1,33 @@
+<?xml version="1.0" ?>
+<outboundPolicies xsi:noNamespaceSchemaLocation="../Schemas/OutboundPolicies.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+   <!-- SAMPLE: global defaults (every attribute is required here) -->
+   <defaults provider="azure" identity="esb-default" method="assertion"
+             scope="${resource}/.default" resource="api-${osb.project}" resource_mapped="true"
+             secret_request="azure-token-v1" assertion_request="azure-token-v1" assertion_token="standard"
+             token_cache_ttl="3000" token_cache_index="${token_url}:${identity}:${resource}:${scope}:${method}" />
+
+   <!-- profiles: named sets of changes, referenced by projects or endpoints -->
+   <profiles>
+      <item name="secret-auth"   identity="esb-to-${osb.project}" method="secret" />
+      <item name="function-keys" identity="esb-to-${osb.project}" method="secret"
+            secureHeader="x-function-key:${osb.service.name}-${osb.operation}" />
+   </profiles>
+
+   <!-- changes for all the business services of an OSB project -->
+   <projects>
+      <item name="ProjectA" profile="function-keys" resource="function-a" />
+      <item name="ProjectB" profile="secret-auth" />
+   </projects>
+
+   <!-- changes for a single business service -->
+   <endpoints>
+      <item name="BS_Orders_1.0" resource="function-b">
+         <customHeader name="x-correlation-id" value="${uuid}" />
+      </item>
+      <item name="BS_BackendX_1.0" identity="esb-to-backend-x" method="assertion" resource="backend-x-api" />
+      <item name="BS_Inventory_1.0" provider="keycloak" identity="esb-keycloak" method="assertion" assertion_request="keycloak"
+            resource="" resource_mapped="false" />
+   </endpoints>
+
+</outboundPolicies>

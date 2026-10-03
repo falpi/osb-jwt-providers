@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+            elementFormDefault="unqualified" attributeFormDefault="unqualified">
+   
+  <!-- ################################################################################ -->
+  <!-- TIPI                                                                             -->
+  <!-- ################################################################################ -->
+
+  <xsd:simpleType name="cacheTTLType">
+    <xsd:restriction base="xsd:int">
+      <xsd:minInclusive value="0"/>
+      <xsd:maxInclusive value="3600"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <xsd:complexType name="providerType">
+    <xsd:attribute name="name"            use="required" type="xsd:string"/>
+    <xsd:attribute name="audience"        use="required" type="xsd:string"/>
+    <xsd:attribute name="jwksURL"         use="required" type="xsd:string"/>
+    <xsd:attribute name="keys_cache_ttl"  use="required" type="cacheTTLType"/>
+  </xsd:complexType>   
+  
+  <xsd:complexType name="providerListType">
+    <xsd:sequence>
+      <xsd:element name="item" type="providerType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  
+  <xsd:complexType name="issuerType">
+    <xsd:attribute name="provider"       use="required" type="xsd:string"/>
+    <xsd:attribute name="identity_claim" use="required" type="xsd:string"/>
+    <xsd:attribute name="issuerURL"      use="required" type="xsd:string"/>
+  </xsd:complexType>   
+  
+  <xsd:complexType name="issuerListType">
+    <xsd:sequence>
+      <xsd:element name="item" type="issuerType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  
+  <xsd:complexType name="profileType">
+    <xsd:attribute name="name"     use="required" type="xsd:string"/>
+    <xsd:attribute name="audience" use="required" type="xsd:string"/>
+  </xsd:complexType>
+  
+  <xsd:complexType name="profileListType">
+    <xsd:sequence>
+      <xsd:element name="item" type="profileType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+  
+  <xsd:complexType name="providerIdentityType">
+    <xsd:attribute name="identity" use="required" type="xsd:string"/>
+    <xsd:attribute name="username" use="required" type="xsd:string"/>
+    <xsd:attribute name="profile"  use="optional" type="xsd:string"/>
+  </xsd:complexType>
+  
+  <xsd:complexType name="providerIdentityListType">
+    <xsd:sequence>
+      <xsd:element name="item" type="providerIdentityType" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+    <xsd:attribute name="name" use="required" type="xsd:string"/>
+  </xsd:complexType>
+  
+  <xsd:complexType name="identityListType">
+    <xsd:sequence>
+      <xsd:element name="provider" type="providerIdentityListType" minOccurs="0" maxOccurs="unbounded">
+        <!-- dichiara che l'identità deve essere univoca all'interno del singolo provider -->
+        <xsd:key name="providerIdentityKey">
+          <xsd:selector xpath="item"/>
+          <xsd:field xpath="@identity"/>
+        </xsd:key>
+      </xsd:element>
+    </xsd:sequence>
+  </xsd:complexType>
+  
+   <!-- ################################################################################ -->
+   <!-- ELEMENTI                                                                         -->
+   <!-- ################################################################################ -->
+   
+   <xsd:element name="inboundPolicies">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element name="providers"  type="providerListType" />
+            <xsd:element name="issuers"    type="issuerListType" />
+            <xsd:element name="profiles"   type="profileListType" />
+            <xsd:element name="identities" type="identityListType" />
+         </xsd:sequence>
+      </xsd:complexType>
+      
+      <!-- dichiara che il nome dei provider deve essere univoco -->
+      <xsd:key name="providerNameKey">
+         <xsd:selector xpath="providers/item"/>
+         <xsd:field xpath="@name"/>
+      </xsd:key>      
+      <!-- dichiara che l'url degli issuer deve essere univoco -->
+      <xsd:key name="issuerURLKey">
+         <xsd:selector xpath="issuers/item"/>
+         <xsd:field xpath="@issuerURL"/>
+      </xsd:key>
+      <!-- dichiara che ogni provider compare una sola volta nelle identities -->
+      <xsd:unique name="identityProviderNameKey">
+         <xsd:selector xpath="identities/provider"/>
+         <xsd:field xpath="@name"/>
+      </xsd:unique>
+      <!-- dichiara che il nome dei profili deve essere univoco -->
+      <xsd:key name="profileNameKey">
+         <xsd:selector xpath="profiles/item"/>
+         <xsd:field xpath="@name"/>
+      </xsd:key>
+      <!-- il nome del provider nell'item degli issuers deve essere uno di quelli definiti nei provider -->
+      <xsd:keyref name="issuerProviderRef" refer="providerNameKey">
+         <xsd:selector xpath="issuers/item"/>
+         <xsd:field xpath="@provider"/>
+      </xsd:keyref>
+      <!-- il nome del provider nell'item delle identities deve essere uno di quelli definiti nei provider -->
+      <xsd:keyref name="identityProviderRef" refer="providerNameKey">
+         <xsd:selector xpath="identities/provider"/>
+         <xsd:field xpath="@name"/>
+      </xsd:keyref>
+      <!-- il profilo nell'item delle identities deve essere uno di quelli definiti nei profili -->
+      <xsd:keyref name="identityProfileRef" refer="profileNameKey">
+         <xsd:selector xpath="identities/provider/item"/>
+         <xsd:field xpath="@profile"/>
+      </xsd:keyref>
+      
+   </xsd:element>
+         
+</xsd:schema>

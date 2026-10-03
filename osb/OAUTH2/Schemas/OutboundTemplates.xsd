@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+            elementFormDefault="unqualified" attributeFormDefault="unqualified">
+            
+   <!-- ################################################################################ -->
+   <!-- TIPI                                                                             -->
+   <!-- ################################################################################ -->
+   
+  <xsd:simpleType name="methodType">
+    <xsd:restriction base="xsd:string">
+      <xsd:enumeration value="secret"/>
+      <xsd:enumeration value="assertion"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+ 
+   <xsd:simpleType name="tokenType">
+    <xsd:restriction base="xsd:string">
+      <xsd:enumeration value="client_assertion"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+  <xsd:simpleType name="valueType">
+    <xsd:restriction base="xsd:string">
+      <xsd:enumeration value="String"/>
+      <xsd:enumeration value="Integer"/>
+    </xsd:restriction>
+  </xsd:simpleType>
+  
+   <xsd:complexType name="detailType">
+      <xsd:simpleContent>
+         <xsd:extension base="xsd:string">
+            <xsd:attribute name="name" type="xsd:string" use="required"/>
+            <xsd:attribute name="type" type="valueType"  use="required"/>
+         </xsd:extension>
+      </xsd:simpleContent>
+   </xsd:complexType>
+
+   <xsd:complexType name="tokenItemType">
+      <xsd:sequence>
+         <xsd:element name="claim" type="detailType" maxOccurs="unbounded"/>
+      </xsd:sequence>
+      <xsd:attribute name="name" use="required" type="xsd:string"/>
+      <xsd:attribute name="type" use="required" type="tokenType"/>
+   </xsd:complexType>
+   
+   <xsd:complexType name="requestItemType">
+      <xsd:sequence>
+         <xsd:element name="parameter" type="detailType" maxOccurs="unbounded"/>
+      </xsd:sequence>
+      <xsd:attribute name="name"     use="required" type="xsd:string"/>
+      <xsd:attribute name="method"   use="required" type="methodType"/>
+      <xsd:attribute name="tokenURL" use="required" type="xsd:string"/>
+   </xsd:complexType>
+   
+   <!-- ################################################################################ -->
+   <!-- ELEMENTI                                                                         -->
+   <!-- ################################################################################ -->
+   
+   <xsd:element name="outboundTemplates">
+      <xsd:complexType>
+         <xsd:choice minOccurs="0" maxOccurs="unbounded">
+            <xsd:element name="token"   type="tokenItemType" />
+            <xsd:element name="request" type="requestItemType" />
+         </xsd:choice>
+      </xsd:complexType>
+      
+      <!-- dichiara che la coppia name/type dei token deve essere univoca -->
+      <xsd:key name="tokenNameKey">
+         <xsd:selector xpath="token"/>
+         <xsd:field xpath="@name"/>
+         <xsd:field xpath="@type"/>
+      </xsd:key>
+      <!-- dichiara che la coppia name/method delle request deve essere univoca -->
+      <xsd:key name="requestNameKey">
+         <xsd:selector xpath="request"/>
+         <xsd:field xpath="@name"/>
+         <xsd:field xpath="@method"/>
+      </xsd:key>
+   </xsd:element>
+   
+</xsd:schema>

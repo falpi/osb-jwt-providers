@@ -1,0 +1,66 @@
+   // ===============================================================================================================
+   // Customizzazione per garantire il corretto ordinanemento degli attributi
+   // ===============================================================================================================
+
+   public PropertyDescriptor[] getPropertyDescriptors() {
+                    
+     java.util.LinkedHashMap descriptors = new java.util.LinkedHashMap(32);
+     PropertyDescriptor[] propertyDescriptors;
+     
+     try {
+        this.buildPropertyDescriptors(descriptors);
+      } catch (Exception ObjException) {
+         System.out.println("Error while building mbean property descriptor:"+ObjException.getMessage());
+      }
+      
+      propertyDescriptors = new PropertyDescriptor[descriptors.size()];
+
+      try {
+        // Determina dinamicamente il nome del file xml da caricare per supportare scenario a provider multipli
+        String StrFileName = "$class.getClassName()".replace("MBeanImplBeanInfo",".xml");
+        
+        InputStream ObjInputStream = this.getClass().getResourceAsStream(StrFileName);        
+        InputStreamReader ObjStreamReader = new InputStreamReader(ObjInputStream,StandardCharsets.UTF_8);
+        BufferedReader ObjBufferedReader = new BufferedReader(ObjStreamReader);
+        
+        String StrXML = "";
+        for (String StrText = ObjBufferedReader.readLine(); StrText != null; StrText = ObjBufferedReader.readLine()) {
+           StrXML+= StrText;
+        }
+        
+         XmlCursor ObjCursor;
+         XmlObject ObjDescriptor = XmlObject.Factory.parse(StrXML);
+         String StrAttributeName;
+   
+         propertyDescriptors[0] = (PropertyDescriptor) descriptors.get("Name");
+         propertyDescriptors[1] = (PropertyDescriptor) descriptors.get("Realm");
+        
+         // Seleziona un elenco dei nomi degli attributi da usare come indice ordinato
+         ObjCursor = ObjDescriptor.newCursor();
+         ObjCursor.selectPath("//*:MBeanAttribute/@Name");
+   
+         // Ricostruisce l'array delle proprietà in base all'ordine dell'XML  
+         int IntIndex = 2;
+         while (ObjCursor.toNextSelection()) {
+            PropertyDescriptor ObjProperty = (PropertyDescriptor) descriptors.get(ObjCursor.getTextValue());
+            if (ObjProperty!=null) {
+               propertyDescriptors[IntIndex] = ObjProperty;
+               IntIndex++;
+            }
+         }
+         
+         // Rimuove buchi alla fine dell'array per attributi non presenti (encrypted)
+         propertyDescriptors = java.util.Arrays.copyOf(propertyDescriptors, IntIndex);
+   
+         // Dealloca il cursore
+         ObjCursor.dispose();
+      
+      } catch (Exception ObjException) {
+         System.out.println("Error while reordering mbean property descriptor:"+ObjException.getMessage());
+      }
+      
+     //propertyDescriptors = (PropertyDescriptor[]) descriptors.values().toArray(new PropertyDescriptor[descriptors.size()]);
+               
+     return propertyDescriptors;
+   }
+   // ===============================================================================================================

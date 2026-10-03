@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="unqualified"
+            attributeFormDefault="unqualified">
+            
+   <!-- ################################################################################ -->
+   <!-- TIPI                                                                             -->
+   <!-- ################################################################################ -->
+   
+   <xsd:simpleType name="authMethod">
+      <xsd:restriction base="xsd:string">
+         <xsd:enumeration value="secret"/>
+         <xsd:enumeration value="assertion"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+   
+   <xsd:simpleType name="supportedAlg">
+      <xsd:restriction base="xsd:string">
+         <xsd:enumeration value="RS256"/>
+      </xsd:restriction>
+   </xsd:simpleType>
+   
+   <!-- ################################################################################ -->
+   <!-- ELEMENTI                                                                         -->
+   <!-- ################################################################################ -->
+   
+   <xsd:element name="clientKeys">
+      <xsd:complexType>
+         <xsd:sequence>
+            <xsd:element ref="item" maxOccurs="unbounded"/>
+         </xsd:sequence>
+      </xsd:complexType>
+      
+      <!-- dichiara che la coppia provider/identity deve essere univoca -->
+      <xsd:key name="clientIdentityKey">
+         <xsd:selector xpath="item"/>
+         <xsd:field xpath="@provider"/>
+         <xsd:field xpath="@identity"/>
+      </xsd:key>
+   </xsd:element>
+   
+   <xsd:element name="item">
+      <xsd:complexType>
+         <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+               <xsd:attribute name="provider" use="required" type="xsd:string"/>
+               <xsd:attribute name="identity" use="required" type="xsd:string"/>
+               <xsd:attribute name="kid" use="required" type="xsd:string"/>
+               <xsd:attribute name="alg" use="required" type="supportedAlg"/>
+               <xsd:attribute name="password" use="required" type="xsd:string"/>
+               <xsd:attribute name="description" use="optional" type="xsd:string"/>
+            </xsd:extension>
+         </xsd:simpleContent>
+      </xsd:complexType>
+   </xsd:element>
+</xsd:schema>

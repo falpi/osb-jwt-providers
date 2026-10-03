@@ -1,0 +1,44 @@
+<?xml version="1.0" ?>
+<resourceMappings xsi:noNamespaceSchemaLocation="../Schemas/ResourceMappings.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+   <!-- SAMPLE: all names and values are fictitious, replace them with the ones of your app registrations -->
+   <!-- names are unique in the whole file, values are unique inside each provider                        -->
+
+   <provider name="azure">
+
+      <!-- consumers calling the ESB (inbound): value = client_id of the consumer -->
+      <item name="consumer-a"       value="00000000-0000-0000-0000-00000000000a" note="client_id of consumer A"/>
+      <item name="consumer-b"       value="00000000-0000-0000-0000-00000000000b" note="client_id of consumer B"/>
+
+      <!-- audiences expected in inbound tokens -->
+      <item name="esb-api"          value="api://esb-api"   note="Application ID URI of the ESB API"/>
+      <item name="other-api"        value="api://other-api" note="audience accepted for the identities of profile alt-audience"/>
+
+      <!-- identities used by the ESB toward the backends (outbound): value = client_id -->
+      <item name="esb-default"      value="00000000-0000-0000-0000-000000000101" note="client_id of the default ESB identity"/>
+      <item name="esb-to-ProjectA"  value="00000000-0000-0000-0000-000000000102" note="client_id used by the ESB toward ProjectA"/>
+      <item name="esb-to-ProjectB"  value="00000000-0000-0000-0000-000000000103" note="client_id used by the ESB toward ProjectB"/>
+      <item name="esb-to-backend-x" value="00000000-0000-0000-0000-000000000104" note="client_id used by the ESB toward backend X"/>
+
+      <!-- target resources (outbound) -->
+      <item name="api-ProjectB"     value="00000000-0000-0000-0000-000000000201" note="resource id of the ProjectB API"/>
+      <item name="backend-x-api"    value="00000000-0000-0000-0000-000000000202" note="resource id of the backend X API"/>
+      <item name="function-a"       value="00000000-0000-0000-0000-000000000203" note="resource id of Function App A"/>
+      <item name="function-b"       value="00000000-0000-0000-0000-000000000204" note="resource id of Function App B"/>
+
+   </provider>
+
+   <provider name="keycloak">
+
+      <!-- consumers calling the ESB (inbound): value = Keycloak client id -->
+      <item name="consumer-c"       value="consumer-c-client" note="Keycloak client of consumer C"/>
+
+      <!-- audience expected in inbound tokens -->
+      <item name="esb-api-keycloak" value="esb-api" note="audience of the ESB API in Keycloak"/>
+
+      <!-- identity used by the ESB toward the backends (outbound) -->
+      <item name="esb-keycloak"     value="esb-client" note="Keycloak client used by the ESB"/>
+
+   </provider>
+
+</resourceMappings>

@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 720" width="900" height="720" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#44546a"/>
+    </marker>
+    <style>
+      .t{fill:#1f2937}.s{fill:#4b5563;font-size:11.5px}.h{font-weight:600}
+      .st{fill:#e8f0fb;stroke:#4a78b5}.ok{fill:#eef6ee;stroke:#4c9a52}.ko{fill:#fdecec;stroke:#c24a4a}.dc{fill:#fdf1e3;stroke:#d98a2b}
+      .ln{stroke:#44546a;stroke-width:1.6;fill:none}.kl{stroke:#c24a4a;stroke-width:1.2;fill:none;stroke-dasharray:4 3}
+    </style>
+  </defs>
+  <rect x="5" y="5" width="890" height="710" rx="10" fill="#fff" stroke="#d1d5db"/>
+  <text x="24" y="32" class="t h" font-size="15">Outbound authentication (doOutboundAuthentication)</text>
+
+  <rect x="40" y="50" width="520" height="46" rx="6" class="st"/>
+  <text x="54" y="70" class="t h">1. Context</text>
+  <text x="54" y="87" class="s">realm provider registered? no Service Account on the BS; detectOperation() → ${osb.operation}</text>
+
+  <rect x="40" y="112" width="520" height="46" rx="6" class="st"/>
+  <text x="54" y="132" class="t h">2. preparePolicies()</text>
+  <text x="54" y="149" class="s">levels endpoint / project / profile / defaults → attributes, custom and secure headers</text>
+
+  <rect x="40" y="174" width="520" height="46" rx="6" class="st"/>
+  <text x="54" y="194" class="t h">3. Templates and mappings</text>
+  <text x="54" y="211" class="s">request template (+ token template for assertion) → token_url; ResourceMappings → Context</text>
+
+  <rect x="40" y="236" width="520" height="46" rx="6" class="st"/>
+  <text x="54" y="256" class="t h">4. prepareAuthentication()</text>
+  <text x="54" y="273" class="s">identity templates; client_id = translateResource(provider, identity)</text>
+
+  <rect x="40" y="298" width="250" height="62" rx="6" class="dc"/>
+  <text x="54" y="318" class="t h">method = secret</text>
+  <text x="54" y="335" class="s">ClientSecrets remote user</text>
+  <text x="54" y="350" class="s">"provider:identity" → client_secret</text>
+  <rect x="310" y="298" width="250" height="62" rx="6" class="dc"/>
+  <text x="324" y="318" class="t h">method = assertion</text>
+  <text x="324" y="335" class="s">ClientKeys provider+identity → sign</text>
+  <text x="324" y="350" class="s">token template → client_assertion</text>
+
+  <rect x="40" y="376" width="520" height="46" rx="6" class="st"/>
+  <text x="54" y="396" class="t h">5. prepareAuthorization()</text>
+  <text x="54" y="413" class="s">resource templates + translateResource (if resource_mapped), scope templates</text>
+
+  <rect x="40" y="438" width="520" height="62" rx="6" class="st"/>
+  <text x="54" y="458" class="t h">6. prepareAccessToken()</text>
+  <text x="54" y="475" class="s">cache key = token_cache_index (token_cache_ttl and token exp); on miss POST the request</text>
+  <text x="54" y="490" class="s">template (x-www-form-urlencoded) to token_url and read access_token</text>
+
+  <rect x="40" y="516" width="520" height="46" rx="6" class="st"/>
+  <text x="54" y="536" class="t h">7. Headers</text>
+  <text x="54" y="553" class="s">Authorization: Bearer; CUSTOM_REQUEST_HEADERS; policy headers (secure via HeaderSecrets)</text>
+
+  <rect x="40" y="578" width="520" height="46" rx="6" class="ok"/>
+  <text x="54" y="598" class="t h">8. Request sent by OSB</text>
+  <text x="54" y="615" class="s">debugging properties, INFO line "Outbound (JWT) => ..."</text>
+
+  <g class="ln">
+    <path d="M300 96 V110" marker-end="url(#a)"/><path d="M300 158 V172" marker-end="url(#a)"/>
+    <path d="M300 220 V234" marker-end="url(#a)"/>
+    <path d="M165 282 V296" marker-end="url(#a)"/><path d="M435 282 V296" marker-end="url(#a)"/>
+    <path d="M165 360 V374" marker-end="url(#a)"/><path d="M435 360 V374" marker-end="url(#a)"/>
+    <path d="M300 422 V436" marker-end="url(#a)"/><path d="M300 500 V514" marker-end="url(#a)"/>
+    <path d="M300 562 V576" marker-end="url(#a)"/>
+  </g>
+
+  <g font-size="12">
+    <rect x="610" y="50" width="260" height="574" rx="8" class="ko"/>
+    <text x="626" y="74" class="t h">TransportException</text>
+    <text x="626" y="104" class="s">1 Custom Outbound provider not</text>
+    <text x="626" y="118" class="s">   configured / Service Account not allowed</text>
+    <text x="626" y="141" class="s">2 Error while parsing security policies</text>
+    <text x="626" y="155" class="s">   Error in security policies custom headers</text>
+    <text x="626" y="203" class="s">3 Error while parsing templates /</text>
+    <text x="626" y="217" class="s">   resource mappings</text>
+    <text x="626" y="265" class="s">4 Identity mapping error (provider:identity)</text>
+    <text x="626" y="405" class="s">5 Resource error / Scope error</text>
+    <text x="626" y="467" class="s">6 Error while preparing access token</text>
+    <text x="626" y="481" class="s">   (error_description of the IdP)</text>
+    <text x="626" y="545" class="s">7 Secure header error ('name')</text>
+    <text x="626" y="590" class="s">→ OSB fault OSB-380000 with the</text>
+    <text x="626" y="604" class="s">   message as reason</text>
+  </g>
+  <g class="kl">
+    <path d="M560 73 H608"/><path d="M560 135 H608"/><path d="M560 197 H608"/><path d="M560 259 H608"/>
+    <path d="M560 399 H608"/><path d="M560 461 H608"/><path d="M560 539 H608"/>
+  </g>
+  <text x="40" y="660" class="s">The realm instance holds the configuration (MBean) and the caches; OSB creates one more instance per business service, which</text>
+  <text x="40" y="678" class="s">borrows the context of the realm instance at its first call ("Provider context init").</text>
+</svg>

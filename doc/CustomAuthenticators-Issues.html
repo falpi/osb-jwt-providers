@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OSB Custom Authenticators – Open Issues</title>
+<style>
+  :root{--fg:#1f2937;--mut:#4b5563;--line:#e5e7eb;--hi:#c0392b;--me:#d98a2b;--lo:#4a78b5;--in:#6b7280}
+  *{box-sizing:border-box}
+  body{margin:0;font:14.5px/1.5 "Segoe UI",Arial,sans-serif;color:var(--fg);background:#fff}
+  header{padding:26px 36px 16px;border-bottom:1px solid var(--line)}
+  header h1{margin:0 0 4px;font-size:24px}
+  header p{margin:4px 0;color:var(--mut)}
+  main{padding:8px 36px 70px;max-width:1500px}
+  h2{margin:34px 0 10px;font-size:20px;border-top:2px solid var(--line);padding-top:12px}
+  code{font-family:Consolas,"Courier New",monospace;font-size:12.5px;background:#f3f4f6;padding:1px 4px;border-radius:3px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:6px 8px;vertical-align:top;text-align:left}
+  th{background:#f3f5f9;position:sticky;top:0}
+  td.id{white-space:nowrap;font-weight:600}
+  td.loc code{white-space:normal;word-break:break-all}
+  .sev{display:inline-block;min-width:62px;text-align:center;border-radius:3px;color:#fff;font-size:12px;padding:1px 6px}
+  .High{background:var(--hi)}.Medium{background:var(--me)}.Low{background:var(--lo)}.Info{background:var(--in)}
+  .summary{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+  .card{border:1px solid var(--line);border-radius:6px;padding:10px 16px;min-width:140px}
+  .card b{font-size:22px;display:block}
+  .filters{margin:10px 0 14px;display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+  .filters label{font-size:13.5px}
+  select,input{font:inherit;padding:3px 6px}
+  .note{background:#eef5ff;border-left:4px solid #4a78b5;padding:10px 14px;border-radius:4px;margin:12px 0}
+  @media (max-width:900px){main,header{padding-left:16px;padding-right:16px}table{font-size:12.5px}}
+  @media print{.filters{display:none}th{position:static}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Open weaknesses, vulnerabilities and improvements</h1>
+  <p>Scope: <code>UTILS/CustomAuthenticators</code> (providers, MBean definitions, build), <code>UTILS/CommonLib</code> (osb-commons) and the XML schemas of the OSB configuration project. The configuration data of a specific installation (policies, mappings, keys, secrets) is out of scope: see the sample project in <code>osb/OAUTH2</code> for a reference configuration.</p>
+  <p>Snapshot of the sources as of 2026-10-03 (package <code>osb-jwt-providers 1.0.0</code>, manifest and <code>Package Title</code> log line included). Line numbers refer to that snapshot. Items already fixed or decided during development are not listed. Secret values are never reported.</p>
+</header>
+<main>
+
+<div class="summary" id="summary"></div>
+<div class="filters">
+  <label>Severity <select id="fsev"><option value="">all</option><option>High</option><option>Medium</option><option>Low</option><option>Info</option></select></label>
+  <label>Area <select id="farea"><option value="">all</option></select></label>
+  <label>Text <input id="ftxt" type="search" placeholder="filter…"></label>
+</div>
+<div class="note">Severity reflects the impact in a production domain. Items marked <i>config</i> depend on how the providers are configured; items marked <i>verify</i> should be confirmed on the target environment before acting.</div>
+
+<table id="issues">
+<thead><tr><th>ID</th><th>Severity</th><th>Area</th><th>Location</th><th>Problem</th><th>Impact / scenario</th><th>Recommendation</th></tr></thead>
+<tbody>
+
+<!-- ============================== HIGH ============================== -->
+<tr><td class="id">H-01</td><td><span class="sev High">High</span></td><td>Providers</td>
+<td class="loc"><code>CustomAuthenticator.java:217, 241, 255, 266, 286, 298</code>; <code>CustomOutboundAuthenticator.java:128-131, 139-141</code></td>
+<td>Every initialization error, and a second outbound provider, call <code>System.exit(0)</code>. The outbound registry is never cleared in <code>shutdown()</code>.</td>
+<td>A configuration mistake or an environment problem (e.g. Kerberos temp file, script engine) silently terminates Admin/Managed servers with exit code 0. A realm restart in the same JVM (supported since 12.2.1) re-initializes the outbound provider, finds the old registry entry and stops the server.</td>
+<td>Throw <code>ProviderInitializationException</code>/<code>RuntimeException</code> so WebLogic reports the failed provider; clear the registry entry in <code>shutdown()</code>; name the conflicting providers in the message.</td></tr>
+
+<tr><td class="id">H-02</td><td><span class="sev High">High</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/src/org/falpi/utils/HttpUtils.java:249-251</code>; <code>CustomAuthenticator.java:842-843</code></td>
+<td>HttpClient is built with connect timeout and connection-request timeout only; no socket (read) timeout. <code>REQUESTS_READ_TIMEOUT</code> is passed as connection-request timeout, which has no effect with a fresh pool per call.</td>
+<td>An identity provider, JWKS endpoint or proxy that accepts the connection but does not answer blocks the execute thread forever: stuck threads, server in WARNING/FAILED, all authenticated OSB traffic affected.</td>
+<td>Add <code>setSocketTimeout(read*1000)</code>; consider a hard overall timeout; reject 0 (infinite) for both timeouts.</td></tr>
+
+<tr><td class="id">H-03</td><td><span class="sev High">High</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../HttpUtils.java:457-460</code>; MBean <code>REQUESTS_SSL_VERIFY</code></td>
+<td>With <code>REQUESTS_SSL_VERIFY=DISABLE</code> the client trusts every certificate and host name (<i>config</i>).</td>
+<td>Inbound: a man in the middle can serve a forged JWKS and every forged JWT is accepted. Outbound: client secrets and client assertions are disclosed and access tokens can be replaced.</td>
+<td>Allow DISABLE only with an explicit WARN at every request, or replace it with a configurable trust store; never use it in production.</td></tr>
+
+<tr><td class="id">H-04</td><td><span class="sev High">High</span></td><td>Build</td>
+<td class="loc"><code>res/BeanInfoBinder-body.template:16, 22, 58-62</code>; <code>CustomAuthenticator.java:233-241</code></td>
+<td>If the reordering of the BeanInfo descriptors fails (MDF not found in the jar, XPath engine not available on JDK 17 without <code>--add-exports</code>, parse error), the exception is printed and an array of nulls is returned.</td>
+<td><code>init()</code> calls <code>getName()</code> on null, catches the NPE and calls <code>System.exit(0)</code>: the server stops at boot.</td>
+<td>Fill the array with the unordered descriptors before reordering and replace it only on success; null checks; close the stream.</td></tr>
+
+<!-- ============================== MEDIUM ============================== -->
+<tr><td class="id">M-01</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
+<td class="loc"><code>CustomInboundAuthenticator.java:176-183</code>; <code>CustomOutboundAuthenticator.java:212-221</code>; <code>CustomAuthenticator.java:1000-1010</code></td>
+<td><code>cleanThread()</code> is not in a <code>finally</code> block, and assumes the thread-locals exist.</td>
+<td>After every failed assertion or outbound error the thread-locals keep the request objects, the token and (outbound) <code>client_secret</code>/<code>client_assertion</code> on the pooled WebLogic thread until its next use by the provider.</td>
+<td>Wrap the implementation in <code>try/finally</code> and make <code>cleanThread()</code> null-safe.</td></tr>
+
+<tr><td class="id">M-02</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
+<td class="loc"><code>CustomAuthenticator.java:456, 479</code>; <code>CustomOutboundAuthenticator.java:845, 856</code></td>
+<td>DEBUG logs every header added to requests and responses with its value, including translated secure headers; TRACE logs the full token request (<code>client_secret</code> or <code>client_assertion</code>) and the token response (<code>access_token</code>).</td>
+<td>Secrets and bearer tokens end up in the server <code>.out</code> files, which are usually less protected than the secrets themselves.</td>
+<td>Mask secure headers and the sensitive form parameters (log only names or a fingerprint); keep TRACE output free of credentials.</td></tr>
+
+<tr><td class="id">M-03</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
+<td class="loc"><code>CustomAuthenticator.java:785</code>; <code>CustomOutboundAuthenticator.java:657, 677</code></td>
+<td>Templates are resolved inside the script text before evaluation; for <code>String</code> claims and parameters the JavaScript escaping is applied <i>before</i> resolution, so the substituted values are not escaped.</td>
+<td>A value containing <code>'</code> or <code>\</code> (a secret, a header value, a context variable) breaks the evaluation or injects code into an engine with full Java access.</td>
+<td>Escape after resolution, or better pass values as script bindings; for <code>String</code> types skip the script engine entirely and use the resolved value.</td></tr>
+
+<tr><td class="id">M-04</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:433, 485, 489, 600-603, 726, 743</code>; <code>CustomAuthenticator.java:659</code></td>
+<td>XPath expressions are built by concatenating values. Most come from configuration, but the secure header key (433) is resolved from templates that can contain request-derived variables (<code>${http.header.*}</code>, <code>${osb.metadata.*}</code>, <code>${osb.context.*}</code>).</td>
+<td>A crafted value such as <code>x' or '1'='1</code> selects the first remote user of HeaderSecrets and its secret is sent to the backend; names with an apostrophe break the lookup.</td>
+<td>Compare in Java as in <code>reverseTranslateResource</code>, or reject values containing quotes; document which variables are safe in secret keys.</td></tr>
+
+<tr><td class="id">M-05</td><td><span class="sev Medium">Medium</span></td><td>Providers / osb-commons</td>
+<td class="loc"><code>CustomInboundAuthenticator.java:701-755</code>; <code>CommonLib/.../jwt/JWTCache.java:42-43, 71-74, 101-104</code></td>
+<td>A <code>kid</code> not found in cache triggers a JWKS download on every request; caches have no size limit, entries are evicted only on lookup of the same key, and tokens are used until the second of their expiry.</td>
+<td>Tokens with random <code>kid</code> (unauthenticated) turn every request into a call to the identity provider; tokens close to expiry fail at the backend.</td>
+<td>Rate-limit JWKS refreshes per URL and cache negative results briefly; add an expiry margin (30-60 s) and a size bound; meanwhile configure <code>token_cache_ttl</code> a few minutes below the token lifetime.</td></tr>
+
+<tr><td class="id">M-06</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
+<td class="loc"><code>CustomAuthenticator.java:552-649, 629-633</code>; <code>CommonLib/.../XMLUtils.java:83-96, 88</code></td>
+<td>In the default mode an invalid resource is used anyway; the negative outcome is not cached, so the schema is compiled and all errors are logged at every request. Schema compilation allows downloading remote imports (<code>setCompileDownloadUrls</code>). The comment says WARN while the code logs ERROR.</td>
+<td>A wrong deployment produces a flood of log lines and CPU load and runs with partially valid policies; outbound network access from schema compilation.</td>
+<td>Cache the negative footprint (log once per version), disable URL downloads, cache the compiled <code>SchemaTypeLoader</code>; consider strict mode for security-relevant resources (inbound policies, mappings).</td></tr>
+
+<tr><td class="id">M-07</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
+<td class="loc"><code>CustomInboundAuthenticator.java:845-850</code></td>
+<td><code>${http.content.body}</code> reads the servlet input stream of the inbound request.</td>
+<td>If used in <code>LOGGING_INFO</code>, <code>DEBUGGING_PROPERTIES</code> or custom headers the proxy service receives an empty body.</td>
+<td>Remove it from inbound, or document it as diagnostic-only with a warning in the guide (done) and in the code.</td></tr>
+
+<tr><td class="id">M-08</td><td><span class="sev Medium">Medium</span></td><td>Providers / osb-commons</td>
+<td class="loc"><code>CustomInboundAuthenticator.java:855, 862-867</code>; <code>CommonLib/.../HttpUtils.java:477</code></td>
+<td><code>${http.header.*}</code> excludes only a header named exactly <code>Authorization</code> (case-sensitive); <code>${http.header.Authorization}</code> returns it unmasked.</td>
+<td>Basic passwords and bearer tokens can be written to logs or forwarded through custom headers.</td>
+<td>Case-insensitive exclusion; mask sensitive headers in both variables.</td></tr>
+
+<tr><td class="id">M-09</td><td><span class="sev Medium">Medium</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../jwt/JWTProviderNimbusImpl.java:89-92</code> (Shaded: 88-91)</td>
+<td>Verification requires <code>nbf</code>, accepts only <code>typ</code> JWT, and uses the algorithm of the token header (the inbound provider pins RS256 before calling it).</td>
+<td>Valid tokens without <code>nbf</code> (common with Keycloak) or with <code>typ: at+jwt</code> are rejected; other callers of the library get no issuer/audience check.</td>
+<td>Require only <code>exp</code> or make required claims configurable; accept <code>at+jwt</code>; pass expected algorithm(s).</td></tr>
+
+<tr><td class="id">M-10</td><td><span class="sev Medium">Medium</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../StringUtils.java:149</code>; <code>SecurityUtils.java:23, 26</code>; <code>CustomAuthenticator.java:836</code></td>
+<td>Request body, Basic credentials and HTTP responses are decoded with the platform default charset.</td>
+<td>Non-ASCII user names, passwords or JSON content decode differently on Windows/Linux and on JDK 18+, causing authentication failures that depend on the platform.</td>
+<td>Use UTF-8 explicitly (or the charset of the Content-Type); use commons-codec Base64.</td></tr>
+
+<tr><td class="id">M-11</td><td><span class="sev Medium">Medium</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../SecurityUtils.java:35, 41, 52, 56-58, 92</code></td>
+<td>Kerberos: the login module authenticates a local <code>Subject</code> that shadows the field returned by <code>getSubject()</code>; <code>java.security.krb5.conf</code> is set to a URI instead of a path.</td>
+<td><code>REQUESTS_PROXY_MODE=KERBEROS</code> runs the request with an empty subject and an unreadable configuration: SPNEGO fails or uses other credentials.</td>
+<td>Remove the local declaration; use <code>getAbsolutePath()</code>; synchronize the configuration writing.</td></tr>
+
+<tr><td class="id">M-12</td><td><span class="sev Medium">Medium</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../WLSUtils.java:82-83, 92-94, 128-134</code></td>
+<td>The kernel identity and a generic decrypt of the domain-key format are public static methods.</td>
+<td>When osb-commons is on the system classpath (in <code>mbeantypes</code> or DefaultDomain/lib) any deployed code, Java callout or script can obtain the kernel identity or decrypt the stored <code>encrypted:</code> values.</td>
+<td>Reduce visibility; keep decryption inside the provider package.</td></tr>
+
+<tr><td class="id">M-13</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:875-881</code></td>
+<td><code>new JSONObject(body)</code> inside the <code>catch</code> is not protected.</td>
+<td>An error response that declares JSON but is not valid JSON raises a <code>JSONException</code> that escapes as a raw runtime exception instead of a <code>TransportException</code>.</td>
+<td>Guard it with try/catch and fall back to the plain message.</td></tr>
+
+<tr><td class="id">M-14</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java</code> (all <code>TransportException</code>s)</td>
+<td>Errors are raised without error code, so OSB maps them to <code>OSB-380000</code> (transport error).</td>
+<td>OSB applies retries and failover of the business service; with an <i>offline duration</i> configured, an identity provider problem (e.g. expired secret) can take the backend URL offline.</td>
+<td>Evaluate a dedicated error code (or <code>OSB-380001</code> for non-retriable errors) and document the behaviour per business service.</td></tr>
+
+<tr><td class="id">M-15</td><td><span class="sev Medium">Medium</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/build.xml:103, 113</code>; WebLogic 14.1.2 <code>nimbus-jose-jwt-9.37.3.jar</code></td>
+<td>Bundled third-party versions: Nimbus JOSE+JWT 9.48 (and 9.37.3 on 14.1.2), org.json 20230618 (<i>verify</i>).</td>
+<td>Advisories CVE-2025-53864 (Nimbus, recursion on nested JSON claims) and CVE-2023-5072 (org.json parser) describe denial of service reachable with an unauthenticated bearer token.</td>
+<td>Check applicability against the vendor advisories; upgrade, ship one pinned version per target.</td></tr>
+
+<tr><td class="id">M-16</td><td><span class="sev Medium">Medium</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../HttpUtils.java:451-454, 459</code></td>
+<td>The HTTP client ignores JVM system properties and the WebLogic trust keystore and uses the default TLS context.</td>
+<td>Certificates trusted in WebLogic (e.g. an internal CA for the identity provider or the proxy) are not trusted by the provider; protocol versions depend on the JDK defaults.</td>
+<td>Explicit protocols (TLSv1.2/1.3) and a configurable trust store, or <code>useSystemProperties()</code>.</td></tr>
+
+<tr><td class="id">M-17</td><td><span class="sev Medium">Medium</span></td><td>Build</td>
+<td class="loc"><code>build.xml:203, 218, 253</code>; <code>CommonLib/build.xml:189</code></td>
+<td>No source encoding (sources are windows-1252) and no release level on javac/MBeanMaker; <code>target.auto</code> accepts JDK 21.</td>
+<td>Builds on JDK 18+ or non-Windows hosts fail or mangle sources; classes compiled by JDK 21 cannot be loaded by WebLogic 14.1.2 (JDK 17).</td>
+<td><code>encoding="windows-1252"</code>, <code>source/target</code> or <code>release</code> per target, <code>-Dfile.encoding=Cp1252</code> for MBeanMaker.</td></tr>
+
+<tr><td class="id">M-18</td><td><span class="sev Medium">Medium</span></td><td>Build</td>
+<td class="loc"><code>build.xml:118, 184-188, 240-244, 273-275, 322</code></td>
+<td>Patches applied with <code>replaceregexp</code> are not verified (and without the <code>g</code> flag); the osb-commons glob may match zero (then, with <code>mergeLibraries=true</code>, all of <code>lib/</code> is merged) or several jars.</td>
+<td>A different MBeanMaker output silently disables the encryption helper or the attribute ordering; wrong libraries end up in the provider jar.</td>
+<td>Verify each patch with <code>&lt;fail unless&gt;</code>; fail unless exactly one osb-commons jar matches; <code>duplicate="fail"</code>.</td></tr>
+
+<tr><td class="id">M-19</td><td><span class="sev Medium">Medium</span></td><td>Build</td>
+<td class="loc"><code>CommonLib/build.xml:218-236</code>; <code>build.xml:80</code></td>
+<td>No build installs osb-commons on the server: with the default <code>mergeLibraries=false</code> it must be copied into <code>mbeantypes</code> by hand. Besides the classes, the osb-commons jar keeps only the Rhino message bundles: the HttpClient public suffix list and <code>version.properties</code> files are dropped (wildcard check against public suffixes limited to <code>.com</code>, User-Agent without version).</td>
+<td>A forgotten or duplicated osb-commons jar in <code>mbeantypes</code> makes the providers fail at boot.</td>
+<td>Optionally let the provider deploy copy the matching osb-commons jar into <code>mbeantypes</code>, replacing older copies only when no other package still needs them; include the remaining HttpClient resources if needed.</td></tr>
+
+<!-- ============================== LOW ============================== -->
+<tr><td class="id">L-01</td><td><span class="sev Low">Low</span></td><td>Providers</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:477-478</code></td>
+<td><code>JWT_POLICIES_PATH</code> is read directly from the MBean: no trim, no templates (all other paths support both); the comment explaining why is out of date.</td>
+<td>Leading/trailing spaces or a template in the path make every call fail.</td>
+<td>Use <code>Config.getString</code> + <code>replaceTemplates</code> as for the other paths.</td></tr>
+
+<tr><td class="id">L-02</td><td><span class="sev Low">Low</span></td><td>Providers</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:481, 505, 600, 602, 603, 743</code>; <code>CustomInboundAuthenticator.java:496, 655</code></td>
+<td>Results of <code>selectPath</code> are indexed with <code>[0]</code> without checking the length.</td>
+<td>A missing template, client key, profile or default (possible because invalid resources are still used, M-06) gives an <code>ArrayIndexOutOfBoundsException</code> wrapped in a generic message.</td>
+<td>Check the length and raise a descriptive error (<i>template 'x' for method 'y' not found</i>).</td></tr>
+
+<tr><td class="id">L-03</td><td><span class="sev Low">Low</span></td><td>Providers</td>
+<td class="loc"><code>CustomAuthenticator.java:977-982</code></td>
+<td><code>${token.payload.&lt;attr&gt;}</code> casts the claim to <code>String</code> and does not check <code>isReady()</code> (the header variant does).</td>
+<td>Numeric claims (<code>iat</code>, <code>exp</code>) raise <code>ClassCastException</code> instead of a value.</td>
+<td>Use <code>String.valueOf</code>; check <code>isReady()</code>.</td></tr>
+
+<tr><td class="id">L-04</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/src/org/falpi/SuperMap.java:41-44</code>; <code>CustomOutboundAuthenticator.java:775</code></td>
+<td><code>getString(key, default)</code> ignores the default and returns "".</td>
+<td>Callers relying on a default (e.g. <code>resource_mapped</code>, today required by the XSD) get "".</td>
+<td>Return the default; review callers.</td></tr>
+
+<tr><td class="id">L-05</td><td><span class="sev Low">Low</span></td><td>Providers</td>
+<td class="loc"><code>CustomAuthenticator.java:993-995</code></td>
+<td>The executing WebLogic thread is renamed to the request counter and never restored.</td>
+<td>Thread dumps and stuck-thread reports show numbers instead of <code>[ACTIVE] ExecuteThread …</code>, making server diagnostics harder.</td>
+<td>Save and restore the original name, or keep the counter only in the log line.</td></tr>
+
+<tr><td class="id">L-06</td><td><span class="sev Low">Low</span></td><td>Providers</td>
+<td class="loc"><code>CustomInboundAuthenticator.java:310, 315</code></td>
+<td><code>Basic</code> and <code>Bearer</code> prefixes are matched case-sensitively.</td>
+<td>A client sending <code>bearer &lt;token&gt;</code> (allowed by RFC 6750/7235) fails with a parsing error.</td>
+<td>Case-insensitive match.</td></tr>
+
+<tr><td class="id">L-07</td><td><span class="sev Low">Low</span></td><td>Providers</td>
+<td class="loc"><code>CustomInboundAuthenticator.java:251-252</code></td>
+<td>The JWT policy and mapping paths are mandatory even when only Basic authentication is used.</td>
+<td>A Basic-only instance cannot be configured without the OAuth2 resources.</td>
+<td>Validate them only when <code>JWT_AUTH=ENABLE</code>.</td></tr>
+
+<tr><td class="id">L-08</td><td><span class="sev Low">Low</span></td><td>Providers</td>
+<td class="loc"><code>CustomInboundAuthenticator.java:101, 112</code>; <code>CustomOutboundAuthenticator.java:101, 111</code></td>
+<td>The instance counter is a static <code>byte</code> incremented without synchronization; OSB creates one outbound instance per business service.</td>
+<td>With more than 256 business services instance ids repeat; concurrent creation may duplicate ids in logs.</td>
+<td>Use an <code>AtomicInteger</code>.</td></tr>
+
+<tr><td class="id">L-09</td><td><span class="sev Low">Low</span></td><td>Providers</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:1153-1159</code></td>
+<td>The <code>${username}</code> function uses reflection on <code>_securityContext</code> without null checks.</td>
+<td>When the business service is invoked without inbound transport context (test console) the template fails with a generic error.</td>
+<td>Return "" when the context is missing.</td></tr>
+
+<tr><td class="id">L-10</td><td><span class="sev Low">Low</span></td><td>MBean</td>
+<td class="loc"><code>CustomInboundAuthenticator.xml:196</code>; <code>CustomOutboundAuthenticator.xml:64, 180, 203</code>; <code>CustomInboundAuthenticator.xml:228</code></td>
+<td>Out-of-date or wrong texts: <code>JWT_RESOURCE_MAPPING_PATH</code> described as a service account (it is an XML resource); typos "espressions", "Minimum level log messages".</td>
+<td>Misleading console help.</td>
+<td>Fix the descriptions.</td></tr>
+
+<tr><td class="id">L-11</td><td><span class="sev Low">Low</span></td><td>MBean</td>
+<td class="loc"><code>CustomInboundAuthenticator.xml:127-146, 69, 79</code>; <code>CustomOutboundAuthenticator.xml:99-118, 41, 51</code></td>
+<td>Timeouts are strings limited to 0-30 s with 0 meaning infinite, <code>LegalNull</code> only on the connection timeout; <code>PROVIDER_TYPE</code> writeable with one legal value; <code>LOGGING_LINES</code> without minimum.</td>
+<td>Infinite waits allowed from the console; meaningless edits possible.</td>
+<td>Integer attributes with Min/Max; read-only provider type; <code>Min="0"</code>.</td></tr>
+
+<tr><td class="id">L-12</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../WLSUtils.java:141</code>; MBean <code>ENCRYPTION_HELPER</code></td>
+<td><code>encryptionHelper(null)</code> throws NPE; the last encrypted value stays in <code>config.xml</code>.</td>
+<td>Setting the attribute to null via WLST fails with an unclear error.</td>
+<td>Null guard; document clearing the field after use.</td></tr>
+
+<tr><td class="id">L-13</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../OSBUtils.java:173, 246-253, 266-281</code></td>
+<td>The resource cache never evicts, ignores the strip-comments flag in its key, returns shared mutable objects and keeps exported service accounts (clear passwords) in memory.</td>
+<td>Heap dumps expose all secrets; a caller modifying a cached document corrupts it for everybody.</td>
+<td>Treat cached documents as read-only (or copy), include the flag in the key, evict removed resources.</td></tr>
+
+<tr><td class="id">L-14</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../jwt/JWTCache.java:72, 102</code>; <code>JWTProviderNimbusImpl.java:71</code></td>
+<td>Check-then-remove race; <code>getExpiration()</code> throws NPE for tokens without <code>exp</code>.</td>
+<td>A cached token without <code>exp</code> makes its cache key fail until restart.</td>
+<td><code>remove(key, entry)</code>; treat missing <code>exp</code> as expired.</td></tr>
+
+<tr><td class="id">L-15</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../logging/LogManager.java:85, 91, 145, 148, 157, 160</code>; <code>LogLevel.java:18</code></td>
+<td>Only <code>Exception</code> details are handled (Errors are dropped), stack traces only at TRACE, output on <code>System.out</code>; an unknown level name gives -1 (everything logged).</td>
+<td>Classpath errors (<code>NoClassDefFoundError</code>) leave no trace; logs bypass WebLogic rotation; a typo in the level enables DEBUG output with personal data.</td>
+<td>Accept <code>Throwable</code>; reject unknown levels; consider a WebLogic logger.</td></tr>
+
+<tr><td class="id">L-16</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../StringUtils.java:167, 198</code></td>
+<td><code>replaceTemplates</code> works on the already substituted text: a value containing <code>${x}</code> is expanded if <code>${x}</code> appears later; a function returning null gives NPE.</td>
+<td>Request-influenced values can pull other context variables (e.g. secrets) into a header or log line.</td>
+<td>Build the result with <code>appendReplacement</code>; error on null.</td></tr>
+
+<tr><td class="id">L-17</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../HttpUtils.java:103-143, 166, 220, 266, 272, 363</code></td>
+<td>Kerberos logout not in <code>finally</code>; only HTTP 200 is success; Content-Type compared by reference; unknown authentication or proxy modes silently mean "none".</td>
+<td>Leaked login contexts; 201/204 treated as errors; typos in modes silently disable authentication.</td>
+<td>Fix the comparisons; reject unknown modes.</td></tr>
+
+<tr><td class="id">L-18</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../WLSUtils.java:10, 121-133</code>; <code>JavaUtils.java:107-110, 130-132, 151</code>; <code>CryptoUtils.java:21-23, 42, 79</code>; <code>StringUtils.java:43</code></td>
+<td>Use of <code>javax.xml.bind</code> (removed from JDK 11, available on 14.1.2 only through WebLogic); broken and unused <code>setField</code>/<code>getFieldNested</code>; version parsing fails on <code>17-ea</code>; only the first PEM object is read (EC keys with parameters fail), typo "Usupported", JVM-wide provider registration; <code>join</code> removes one character for multi-character separators.</td>
+<td>Cross-target fragility and minor misbehaviour.</td>
+<td>commons-codec Base64; remove dead helpers; tolerant version parsing; loop over PEM objects.</td></tr>
+
+<tr><td class="id">L-19</td><td><span class="sev Low">Low</span></td><td>Schemas</td>
+<td class="loc"><code>MAIN/OAUTH2/Schemas/ClientKeys.xsd:9-20</code>; <code>ResourceMappings.xsd:9</code>; key attributes of all XSDs</td>
+<td>Unused <code>authMethod</code> types; <code>alg</code> limited to RS256; identifiers typed as plain <code>xsd:string</code> (empty values and apostrophes allowed).</td>
+<td>Empty or quoted names pass validation and break lookups at runtime.</td>
+<td>Remove unused types; non-empty patterns without quotes for names; extend <code>alg</code> if PS/ES keys are needed.</td></tr>
+
+<tr><td class="id">L-20</td><td><span class="sev Low">Low</span></td><td>Build</td>
+<td class="loc"><code>build.xml:89-98, 143-146, 209-210, 252, 263, 331</code>; <code>build-*.cmd:1</code>; <code>tools/explore-*.cmd:1</code>; <code>CustomAuthenticators-12.2.1.jpr:166-185</code>; <code>res/BeanInfoBinder-body.template:13, 22-28, 59</code>; <code>tools/dump-example.java:6</code></td>
+<td>Hard-coded paths and JDeveloper build numbers; dated jar names in the projects; deploy/rebuild not depending on build; BeanInfo template stream not closed; debug snippet writing object dumps to <code>C:/temp</code>.</td>
+<td>Fragile builds on other machines; possible stale artefacts; secrets in dumps if the snippet is left in code.</td>
+<td>Properties file for paths; stable jar name; manifest attributes; close streams; keep dump code out of releases.</td></tr>
+
+<!-- ============================== INFO ============================== -->
+<tr><td class="id">I-01</td><td><span class="sev Info">Info</span></td><td>Providers</td>
+<td class="loc"><code>CustomInboundAuthenticator.java:575</code></td>
+<td>The accepted algorithm is fixed to RS256.</td>
+<td>Identity providers signing with PS256/ES256 cannot be used.</td>
+<td>Optional per-provider <code>alg</code> attribute in InboundPolicies.</td></tr>
+
+<tr><td class="id">I-02</td><td><span class="sev Info">Info</span></td><td>Providers</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:952-956, 1156</code>; <code>WLSUtils.java:163-165</code></td>
+<td>Operation detection, <code>${username}</code> and inbound header injection rely on private fields of OSB/WebLogic classes.</td>
+<td>May break on a patch set or a new release; failures are handled (fallback to WSDL) but should be retested on each target.</td>
+<td>Keep a regression test per target.</td></tr>
+
+<tr><td class="id">I-03</td><td><span class="sev Info">Info</span></td><td>Providers</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:90, 198, 893-927</code>; <code>CustomInboundAuthenticator.java:104, 126</code>; <code>CustomAuthenticator.java:231-236</code></td>
+<td>Unused code: <code>ENCRYPTION_HELPER</code> constant, <code>encodeProperties()</code>, inbound registry, <code>providerDescriptor</code>; "Provider context init" is logged as WARN although it is a normal event.</td>
+<td>Noise for maintainers and in logs.</td>
+<td>Remove or document; log the context init at INFO.</td></tr>
+
+<tr><td class="id">I-04</td><td><span class="sev Info">Info</span></td><td>Providers</td>
+<td class="loc"><code>CustomAuthenticator.java:786-791</code></td>
+<td><code>Integer</code> template values are checked against the class name returned by the script engine (<i>verify</i> on 14.1.2/Rhino, which may return <code>Double</code>); epoch values exceed the integer range in 2038.</td>
+<td>Client assertion claims <code>iat/exp</code> could fail on one target or in the future.</td>
+<td>Accept any <code>Number</code> and convert to <code>long</code>.</td></tr>
+
+<tr><td class="id">I-05</td><td><span class="sev Info">Info</span></td><td>Providers</td>
+<td class="loc"><code>osb-commons WLSUtils.getAuthenticator</code>; <code>CustomInboundAuthenticator.java:405</code></td>
+<td>Basic authentication is checked against the embedded LDAP authenticator only.</td>
+<td>Users of other authenticators (LDAP, AD) cannot use Basic through this provider.</td>
+<td>Document, or use the realm login (JAAS) instead.</td></tr>
+
+<tr><td class="id">I-06</td><td><span class="sev Info">Info</span></td><td>Providers</td>
+<td class="loc"><code>CustomInboundAuthenticator.xml:100</code></td>
+<td>The default <code>LOGGING_INFO</code> logs identity, client host and client IP of every request.</td>
+<td>Personal data in logs: retention must follow the applicable policy.</td>
+<td>Document it; consider a lighter default.</td></tr>
+
+<tr><td class="id">I-07</td><td><span class="sev Info">Info</span></td><td>Build</td>
+<td class="loc"><code>build-1412.cmd:3</code>; <code>CustomAuthenticators-14.1.2.jpr:103-108</code></td>
+<td>The 14.1.2 build needs <code>--add-exports</code> for the JDK XPath engine; the runtime may need them too for XmlBeans XPath (<i>verify</i>).</td>
+<td>Without them on the server, XPath-based code (BeanInfo ordering, <code>selectPath</code>) can fail on 14.1.2 (see H-04).</td>
+<td>Test on 14.1.2 and document the required <code>JAVA_OPTIONS</code>.</td></tr>
+
+<tr><td class="id">I-08</td><td><span class="sev Info">Info</span></td><td>osb-commons</td>
+<td class="loc"><code>CommonLib/.../HttpUtils.java:103, 194</code></td>
+<td>A new HTTP client (and TLS session) is created for every call.</td>
+<td>Extra latency on every JWKS or token request when caches are disabled.</td>
+<td>A shared pooled client per configuration.</td></tr>
+
+<tr><td class="id">I-09</td><td><span class="sev Info">Info</span></td><td>osb-commons</td>
+<td class="loc">osb-commons jar (merged into the provider jar only with <code>mergeLibraries=true</code>)</td>
+<td>Third-party libraries (httpclient, httpcore, commons-codec, org.json, gson, tink, Nimbus) are bundled unshaded in osb-commons.</td>
+<td>Possible conflicts with versions used by WebLogic or by applications on the system classpath.</td>
+<td>Shade them, or keep <code>mergeLibraries</code> per target.</td></tr>
+
+</tbody>
+</table>
+</main>
+<script>
+(function(){
+  var rows=[].slice.call(document.querySelectorAll('#issues tbody tr'));
+  var areas={},counts={High:0,Medium:0,Low:0,Info:0};
+  rows.forEach(function(r){var s=r.cells[1].textContent.trim();counts[s]++;areas[r.cells[2].textContent.trim()]=1;});
+  var sum=document.getElementById('summary');
+  sum.innerHTML='<div class="card"><b>'+rows.length+'</b>items</div>'+['High','Medium','Low','Info'].map(function(k){return '<div class="card"><b>'+counts[k]+'</b><span class="sev '+k+'">'+k+'</span></div>';}).join('');
+  var fa=document.getElementById('farea');
+  Object.keys(areas).sort().forEach(function(a){var o=document.createElement('option');o.textContent=a;fa.appendChild(o);});
+  function apply(){
+    var s=document.getElementById('fsev').value,a=fa.value,t=document.getElementById('ftxt').value.toLowerCase();
+    rows.forEach(function(r){
+      var ok=(!s||r.cells[1].textContent.trim()===s)&&(!a||r.cells[2].textContent.trim()===a)&&(!t||r.textContent.toLowerCase().indexOf(t)>=0);
+      r.style.display=ok?'':'none';
+    });
+  }
+  ['fsev','farea','ftxt'].forEach(function(id){document.getElementById(id).addEventListener('input',apply);});
+})();
+</script>
+</body>
+</html>

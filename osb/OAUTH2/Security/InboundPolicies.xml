@@ -1,0 +1,32 @@
+<?xml version="1.0" ?>
+<inboundPolicies xsi:noNamespaceSchemaLocation="../Schemas/InboundPolicies.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+   <!-- SAMPLE: replace 00000000-0000-0000-0000-000000000000 with your tenant id and the keycloak.example.com URLs with your realm -->
+
+   <providers>
+      <item name="azure"    audience="esb-api"          jwksURL="https://login.microsoftonline.com/common/discovery/keys" keys_cache_ttl="3600" />
+      <item name="keycloak" audience="esb-api-keycloak" jwksURL="https://keycloak.example.com/realms/example-realm/protocol/openid-connect/certs" keys_cache_ttl="3600" />
+   </providers>
+
+   <issuers>
+      <!-- Entra ID token v1 (client in appid) and v2 (client in azp) -->
+      <item provider="azure"    identity_claim="appid" issuerURL="https://sts.windows.net/00000000-0000-0000-0000-000000000000/" />
+      <item provider="azure"    identity_claim="azp"   issuerURL="https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/v2.0" />
+      <item provider="keycloak" identity_claim="azp"   issuerURL="https://keycloak.example.com/realms/example-realm" />
+   </issuers>
+
+   <profiles>
+      <item name="alt-audience" audience="other-api" />
+   </profiles>
+
+   <identities>
+      <provider name="azure">
+         <item identity="consumer-a" username="consumer_a" profile="alt-audience" />
+         <item identity="consumer-b" username="consumer_b" />
+      </provider>
+      <provider name="keycloak">
+         <item identity="consumer-c" username="consumer_c" />
+      </provider>
+   </identities>
+
+</inboundPolicies>

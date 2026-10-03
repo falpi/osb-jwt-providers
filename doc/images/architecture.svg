@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#44546a"/>
+    </marker>
+    <style>
+      .t{fill:#1f2937}.s{fill:#4b5563;font-size:11px}.h{font-weight:600}
+      .osb{fill:#e8f0fb;stroke:#4a78b5}.wls{fill:#eef6ee;stroke:#4c9a52}.idp{fill:#fdf1e3;stroke:#d98a2b}
+      .cfg{fill:#f6f2fb;stroke:#8a63c2}.ext{fill:#f3f4f6;stroke:#6b7280}
+      .ln{stroke:#44546a;stroke-width:1.6;fill:none}
+      .dash{stroke:#8a63c2;stroke-width:1.4;fill:none;stroke-dasharray:5 4}
+    </style>
+  </defs>
+
+  <rect x="10" y="10" width="940" height="540" rx="10" fill="#ffffff" stroke="#d1d5db"/>
+  <text x="26" y="34" class="t h" font-size="15">WebLogic domain with Oracle Service Bus</text>
+
+  <!-- consumer -->
+  <rect x="24" y="96" width="120" height="70" rx="8" class="ext"/>
+  <text x="84" y="124" text-anchor="middle" class="t h">Consumer</text>
+  <text x="84" y="142" text-anchor="middle" class="s">Authorization: Bearer</text>
+  <text x="84" y="156" text-anchor="middle" class="s">(or Basic)</text>
+
+  <!-- proxy -->
+  <rect x="190" y="90" width="170" height="82" rx="8" class="osb"/>
+  <text x="275" y="116" text-anchor="middle" class="t h">Proxy Service</text>
+  <text x="275" y="134" text-anchor="middle" class="s">HTTP transport</text>
+  <text x="275" y="148" text-anchor="middle" class="s">Custom Authentication</text>
+  <text x="275" y="162" text-anchor="middle" class="s">token type CIA.*</text>
+
+  <!-- pipeline -->
+  <rect x="410" y="90" width="150" height="82" rx="8" class="osb"/>
+  <text x="485" y="122" text-anchor="middle" class="t h">Pipeline</text>
+  <text x="485" y="140" text-anchor="middle" class="s">runs as the asserted</text>
+  <text x="485" y="154" text-anchor="middle" class="s">realm user</text>
+
+  <!-- business service -->
+  <rect x="610" y="90" width="170" height="82" rx="8" class="osb"/>
+  <text x="695" y="116" text-anchor="middle" class="t h">Business Service</text>
+  <text x="695" y="134" text-anchor="middle" class="s">HTTP transport</text>
+  <text x="695" y="148" text-anchor="middle" class="s">Custom Authentication class</text>
+  <text x="695" y="162" text-anchor="middle" class="s">CustomOutboundAuthenticator</text>
+
+  <!-- backend -->
+  <rect x="820" y="96" width="116" height="70" rx="8" class="ext"/>
+  <text x="878" y="124" text-anchor="middle" class="t h">Backend</text>
+  <text x="878" y="142" text-anchor="middle" class="s">Authorization:</text>
+  <text x="878" y="156" text-anchor="middle" class="s">Bearer + headers</text>
+
+  <path d="M144 131 H188" class="ln" marker-end="url(#a)"/>
+  <path d="M360 131 H408" class="ln" marker-end="url(#a)"/>
+  <path d="M560 131 H608" class="ln" marker-end="url(#a)"/>
+  <path d="M780 131 H818" class="ln" marker-end="url(#a)"/>
+
+  <!-- realm -->
+  <rect x="190" y="220" width="590" height="120" rx="8" class="wls"/>
+  <text x="290" y="242" class="t h">Security realm (myrealm)</text>
+  <rect x="206" y="254" width="250" height="72" rx="6" fill="#ffffff" stroke="#4c9a52"/>
+  <text x="331" y="276" text-anchor="middle" class="t h">CustomInboundAuthenticator</text>
+  <text x="331" y="294" text-anchor="middle" class="s">Identity Asserter (CIA:nnn)</text>
+  <text x="331" y="310" text-anchor="middle" class="s">JWT / BASIC, one or more instances</text>
+  <rect x="514" y="254" width="250" height="72" rx="6" fill="#ffffff" stroke="#4c9a52"/>
+  <text x="639" y="276" text-anchor="middle" class="t h">CustomOutboundAuthenticator</text>
+  <text x="639" y="294" text-anchor="middle" class="s">Authentication provider (COA:nnn)</text>
+  <text x="639" y="310" text-anchor="middle" class="s">exactly one instance</text>
+
+  <path d="M275 172 V252" class="ln" marker-end="url(#a)"/>
+  <text x="282" y="214" class="s">assertIdentity()</text>
+  <path d="M695 172 V252" class="ln" marker-end="url(#a)"/>
+  <text x="702" y="214" class="s">doOutboundAuthentication()</text>
+
+  <!-- idp -->
+  <rect x="820" y="230" width="116" height="100" rx="8" class="idp"/>
+  <text x="878" y="254" text-anchor="middle" class="t h">Identity</text>
+  <text x="878" y="270" text-anchor="middle" class="t h">Provider</text>
+  <text x="878" y="290" text-anchor="middle" class="s">Entra ID /</text>
+  <text x="878" y="304" text-anchor="middle" class="s">Keycloak</text>
+  <text x="878" y="320" text-anchor="middle" class="s">JWKS, token API</text>
+  <path d="M764 290 H818" class="ln" marker-end="url(#a)"/>
+  <text x="768" y="284" class="s">token</text>
+  <path d="M456 300 C 520 380, 760 380, 850 332" class="ln" marker-end="url(#a)"/>
+  <text x="470" y="390" class="s">JWKS download (signing keys)</text>
+
+  <!-- config -->
+  <rect x="24" y="400" width="912" height="134" rx="8" class="cfg"/>
+  <text x="40" y="422" class="t h">OSB configuration project (e.g. OAUTH2) – resources read at runtime</text>
+  <g font-size="12">
+    <rect x="40" y="436" width="160" height="40" rx="5" fill="#fff" stroke="#8a63c2"/>
+    <text x="120" y="452" text-anchor="middle" class="t h">InboundPolicies.xml</text>
+    <text x="120" y="467" text-anchor="middle" class="s">issuers, identities</text>
+    <rect x="212" y="436" width="160" height="40" rx="5" fill="#fff" stroke="#8a63c2"/>
+    <text x="292" y="452" text-anchor="middle" class="t h">ResourceMappings.xml</text>
+    <text x="292" y="467" text-anchor="middle" class="s">names ⇄ client_id / GUID</text>
+    <rect x="384" y="436" width="160" height="40" rx="5" fill="#fff" stroke="#8a63c2"/>
+    <text x="464" y="452" text-anchor="middle" class="t h">OutboundPolicies.xml</text>
+    <text x="464" y="467" text-anchor="middle" class="s">defaults, levels, headers</text>
+    <rect x="556" y="436" width="170" height="40" rx="5" fill="#fff" stroke="#8a63c2"/>
+    <text x="641" y="452" text-anchor="middle" class="t h">OutboundTemplates.xml</text>
+    <text x="641" y="467" text-anchor="middle" class="s">assertion claims, requests</text>
+    <rect x="738" y="436" width="184" height="40" rx="5" fill="#fff" stroke="#8a63c2"/>
+    <text x="830" y="452" text-anchor="middle" class="t h">ClientKeys.xml</text>
+    <text x="830" y="467" text-anchor="middle" class="s">private keys (assertion)</text>
+    <rect x="384" y="484" width="160" height="40" rx="5" fill="#fff" stroke="#8a63c2"/>
+    <text x="464" y="500" text-anchor="middle" class="t h">ClientSecrets.sa</text>
+    <text x="464" y="515" text-anchor="middle" class="s">client secrets</text>
+    <rect x="556" y="484" width="170" height="40" rx="5" fill="#fff" stroke="#8a63c2"/>
+    <text x="641" y="500" text-anchor="middle" class="t h">HeaderSecrets.sa</text>
+    <text x="641" y="515" text-anchor="middle" class="s">secure header values</text>
+    <rect x="40" y="484" width="332" height="40" rx="5" fill="#fff" stroke="#8a63c2"/>
+    <text x="206" y="500" text-anchor="middle" class="t h">XSD schemas (Schemas folder)</text>
+    <text x="206" y="515" text-anchor="middle" class="s">referenced by xsi:noNamespaceSchemaLocation</text>
+  </g>
+  <path d="M331 326 V398" class="dash" marker-end="url(#a)"/>
+  <path d="M639 326 V398" class="dash" marker-end="url(#a)"/>
+</svg>
