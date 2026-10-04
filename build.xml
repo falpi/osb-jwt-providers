@@ -2,8 +2,8 @@
 ##################################################################################################################################
 VERSIONING
 ##################################################################################################################################
-$Revision: 2079 $
-$Date: 2026-10-03 17:34:50 +0200 (Sat, 03 Oct 2026) $
+$Revision: 2093 $
+$Date: 2026-10-04 13:30:39 +0200 (Sun, 04 Oct 2026) $
 ##################################################################################################################################
 -->
 <project name="Build" default="all" basedir="." xmlns:if="ant:if" xmlns:unless="ant:unless">
@@ -77,7 +77,7 @@ $Date: 2026-10-03 17:34:50 +0200 (Sat, 03 Oct 2026) $
         <property name="embedSources" value="false"/>
     
         <!-- controllo del packaging delle librerie esterne -->
-        <property name="mergeLibraries" value="false"/>
+        <property name="mergeLibraries" value="true"/>
                
         <!-- ==================================================================================================== -->
         <!-- Target specific properties   -->
@@ -206,6 +206,7 @@ $Date: 2026-10-03 17:34:50 +0200 (Sat, 03 Oct 2026) $
            <arg line="-files ${buildDir}/temp"/>
            <classpath refid="myclasspath"/>
         </java>
+        <move file="${buildDir}/temp/CustomIdentityAsserterImpl.java" todir="${buildDir}/temp/${packageDir}"/>
         <move file="${buildDir}/temp/CustomInboundAuthenticatorImpl.java" todir="${buildDir}/temp/${packageDir}"/>
         <move file="${buildDir}/temp/CustomOutboundAuthenticatorImpl.java" todir="${buildDir}/temp/${packageDir}"/>
         <echo message="Created Supporting Classes"></echo>
@@ -298,8 +299,10 @@ $Date: 2026-10-03 17:34:50 +0200 (Sat, 03 Oct 2026) $
        </macrodef>
 
        <!-- versioni dei singoli provider, riportate nel manifest del package -->
+       <mbean-version file="${sourceDir}/${packageDir}/CustomIdentityAsserter.xml" property="legacyVersion"/>
        <mbean-version file="${sourceDir}/${packageDir}/CustomInboundAuthenticator.xml" property="inboundVersion"/>
        <mbean-version file="${sourceDir}/${packageDir}/CustomOutboundAuthenticator.xml" property="outboundVersion"/>
+       <echo message="Legacy version ....: ${legacyVersion}"/>
        <echo message="Inbound version ...: ${inboundVersion}"/>
        <echo message="Outbound version ..: ${outboundVersion}"/>
 
@@ -313,6 +316,7 @@ $Date: 2026-10-03 17:34:50 +0200 (Sat, 03 Oct 2026) $
              <attribute name="Implementation-Version" value="${packageVersion}"/>
              <attribute name="Build-Date"             value="${buildTimestamp}"/>
              <attribute name="Build-Target"           value="fmw_${weblogicVersion}"/>
+             <attribute name="Legacy-Version"         value="${legacyVersion}"/>
              <attribute name="Inbound-Version"        value="${inboundVersion}"/>
              <attribute name="Outbound-Version"       value="${outboundVersion}"/>
           </manifest>
@@ -329,6 +333,14 @@ $Date: 2026-10-03 17:34:50 +0200 (Sat, 03 Oct 2026) $
        <!-- :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: -->
        <delete>
           <fileset dir="${weblogicDir}/wlserver/server/lib/mbeantypes" includes="${packageName}-*.*"/>
+       </delete>       
+       <!-- rimuove il package del vecchio provider, ora integrato (le sue classi sarebbero duplicate) -->
+       <delete verbose="true">
+          <fileset dir="${weblogicDir}/wlserver/server/lib/mbeantypes" includes="osb-jwt-provider-*.*"/>
+       </delete>       
+       <!-- con le librerie incluse nel package rimuove la copia separata di osb-commons (classi duplicate) -->
+       <delete verbose="true" if:true="${mergeLibraries}">
+          <fileset dir="${weblogicDir}/wlserver/server/lib/mbeantypes" includes="osb-commons-*.*"/>
        </delete>       
        <copy tofile="${weblogicDir}/wlserver/server/lib/mbeantypes/${packageName}-${packageVersion}.jar" file="${deployDir}/${outputFileName}.jar"/>
        <!-- :::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::: -->

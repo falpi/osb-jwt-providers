@@ -361,7 +361,7 @@ public abstract class CustomAuthenticator {
 
             // Compone il titolo con data e target di build e con le versioni dei singoli provider
             return StrTitle+" "+StrVersion+" ("+ObjAttributes.getValue("Build-Date")+", "+ObjAttributes.getValue("Build-Target")+
-                   ", inbound "+ObjAttributes.getValue("Inbound-Version")+", outbound "+ObjAttributes.getValue("Outbound-Version")+")";
+                   ", legacy "+ObjAttributes.getValue("Legacy-Version")+", inbound "+ObjAttributes.getValue("Inbound-Version")+", outbound "+ObjAttributes.getValue("Outbound-Version")+")";
 
          } finally {
             ObjJarFile.close();

@@ -23,7 +23,7 @@ Do not associate a "Service Account" with the Business Service: the provider rej
 
 <p align="center"><img src="doc/images/business-service-transport.png" /></p>
 
-<p align="justify">OSB loads the class from the server classpath, not from <code>mbeantypes</code>: the provider package and the osb-commons jar must be added to <code>POST_CLASSPATH</code> in the domain script <code>setDomainEnv</code>, as described in <a href="README.md#making-the-outbound-authentication-class-visible-to-osb">Making the outbound authentication class visible to OSB</a>. See also the <a href="https://docs.oracle.com/middleware/1213/osb/develop/GUID-966DBF19-BFAD-4755-8F5A-D2CD12D9A933.htm#OSBDV89425">Oracle documentation on custom outbound authentication</a>.</p>
+<p align="justify">OSB loads the class from the server classpath, not from <code>mbeantypes</code>: the provider package (and the osb-commons jar, when it is built separately) must be added to <code>POST_CLASSPATH</code> in the domain script <code>setDomainEnv</code>, as described in <a href="README.md#making-the-outbound-authentication-class-visible-to-osb">Making the outbound authentication class visible to OSB</a>. See also the <a href="https://docs.oracle.com/middleware/1213/osb/develop/GUID-966DBF19-BFAD-4755-8F5A-D2CD12D9A933.htm#OSBDV89425">Oracle documentation on custom outbound authentication</a>.</p>
 
 ## Provider Parameters
 <p align="justify">Below is a detailed description of each parameter. The parameters shared with the inbound provider are described in more detail in the <a href="README.md#provider-parameters">README</a>.</p>

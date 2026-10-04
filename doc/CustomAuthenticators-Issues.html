@@ -175,21 +175,21 @@
 <td>Explicit protocols (TLSv1.2/1.3) and a configurable trust store, or <code>useSystemProperties()</code>.</td></tr>
 
 <tr><td class="id">M-17</td><td><span class="sev Medium">Medium</span></td><td>Build</td>
-<td class="loc"><code>build.xml:203, 218, 253</code>; <code>CommonLib/build.xml:189</code></td>
+<td class="loc"><code>build.xml:203, 219, 254</code>; <code>CommonLib/build.xml:189</code></td>
 <td>No source encoding (sources are windows-1252) and no release level on javac/MBeanMaker; <code>target.auto</code> accepts JDK 21.</td>
 <td>Builds on JDK 18+ or non-Windows hosts fail or mangle sources; classes compiled by JDK 21 cannot be loaded by WebLogic 14.1.2 (JDK 17).</td>
 <td><code>encoding="windows-1252"</code>, <code>source/target</code> or <code>release</code> per target, <code>-Dfile.encoding=Cp1252</code> for MBeanMaker.</td></tr>
 
 <tr><td class="id">M-18</td><td><span class="sev Medium">Medium</span></td><td>Build</td>
-<td class="loc"><code>build.xml:118, 184-188, 240-244, 273-275, 322</code></td>
-<td>Patches applied with <code>replaceregexp</code> are not verified (and without the <code>g</code> flag); the osb-commons glob may match zero (then, with <code>mergeLibraries=true</code>, all of <code>lib/</code> is merged) or several jars.</td>
+<td class="loc"><code>build.xml:118, 184-188, 241-245, 274-276, 326</code></td>
+<td>Patches applied with <code>replaceregexp</code> are not verified (and without the <code>g</code> flag); the osb-commons glob may match zero (then, with the default <code>mergeLibraries=true</code>, all of <code>lib/</code> is merged) or several jars.</td>
 <td>A different MBeanMaker output silently disables the encryption helper or the attribute ordering; wrong libraries end up in the provider jar.</td>
 <td>Verify each patch with <code>&lt;fail unless&gt;</code>; fail unless exactly one osb-commons jar matches; <code>duplicate="fail"</code>.</td></tr>
 
 <tr><td class="id">M-19</td><td><span class="sev Medium">Medium</span></td><td>Build</td>
-<td class="loc"><code>CommonLib/build.xml:218-236</code>; <code>build.xml:80</code></td>
-<td>No build installs osb-commons on the server: with the default <code>mergeLibraries=false</code> it must be copied into <code>mbeantypes</code> by hand. Besides the classes, the osb-commons jar keeps only the Rhino message bundles: the HttpClient public suffix list and <code>version.properties</code> files are dropped (wildcard check against public suffixes limited to <code>.com</code>, User-Agent without version).</td>
-<td>A forgotten or duplicated osb-commons jar in <code>mbeantypes</code> makes the providers fail at boot.</td>
+<td class="loc"><code>CommonLib/build.xml:218-236</code>; <code>build.xml:80, 333-344</code></td>
+<td>With the default <code>mergeLibraries=true</code> osb-commons is merged into the package and the deploy deletes every <code>osb-commons-*</code> jar from <code>mbeantypes</code>, also copies installed for other extensions; with <code>mergeLibraries=false</code> no build installs osb-commons on the server and it must be copied into <code>mbeantypes</code> by hand. Besides the classes, the osb-commons jar keeps only the Rhino message bundles: the HttpClient public suffix list and <code>version.properties</code> files are dropped (wildcard check against public suffixes limited to <code>.com</code>, User-Agent without version).</td>
+<td>A forgotten or duplicated osb-commons jar in <code>mbeantypes</code> makes the providers fail at boot; on a development installation the merged deploy can remove a jar still needed by another extension.</td>
 <td>Optionally let the provider deploy copy the matching osb-commons jar into <code>mbeantypes</code>, replacing older copies only when no other package still needs them; include the remaining HttpClient resources if needed.</td></tr>
 
 <!-- ============================== LOW ============================== -->
@@ -308,7 +308,7 @@
 <td>Remove unused types; non-empty patterns without quotes for names; extend <code>alg</code> if PS/ES keys are needed.</td></tr>
 
 <tr><td class="id">L-20</td><td><span class="sev Low">Low</span></td><td>Build</td>
-<td class="loc"><code>build.xml:89-98, 143-146, 209-210, 252, 263, 331</code>; <code>build-*.cmd:1</code>; <code>tools/explore-*.cmd:1</code>; <code>CustomAuthenticators-12.2.1.jpr:166-185</code>; <code>res/BeanInfoBinder-body.template:13, 22-28, 59</code>; <code>tools/dump-example.java:6</code></td>
+<td class="loc"><code>build.xml:89-98, 143-146, 209-211, 253, 264, 335</code>; <code>build-*.cmd:1</code>; <code>tools/explore-*.cmd:1</code>; <code>CustomAuthenticators-12.2.1.jpr:166-185</code>; <code>res/BeanInfoBinder-body.template:13, 22-28, 59</code>; <code>tools/dump-example.java:6</code></td>
 <td>Hard-coded paths and JDeveloper build numbers; dated jar names in the projects; deploy/rebuild not depending on build; BeanInfo template stream not closed; debug snippet writing object dumps to <code>C:/temp</code>.</td>
 <td>Fragile builds on other machines; possible stale artefacts; secrets in dumps if the snippet is left in code.</td>
 <td>Properties file for paths; stable jar name; manifest attributes; close streams; keep dump code out of releases.</td></tr>
@@ -363,7 +363,7 @@
 <td>A shared pooled client per configuration.</td></tr>
 
 <tr><td class="id">I-09</td><td><span class="sev Info">Info</span></td><td>osb-commons</td>
-<td class="loc">osb-commons jar (merged into the provider jar only with <code>mergeLibraries=true</code>)</td>
+<td class="loc">osb-commons jar (merged into the provider jar with <code>mergeLibraries=true</code>, the default)</td>
 <td>Third-party libraries (httpclient, httpcore, commons-codec, org.json, gson, tink, Nimbus) are bundled unshaded in osb-commons.</td>
 <td>Possible conflicts with versions used by WebLogic or by applications on the system classpath.</td>
 <td>Shade them, or keep <code>mergeLibraries</code> per target.</td></tr>

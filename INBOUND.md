@@ -122,7 +122,7 @@ Element / attribute                        | Meaning
 <p align="justify">The schema enforces unique IDP names, issuer URLs and profile names, a single identities block per IDP, unique identities per IDP and the existence of the referenced IDPs and profiles.</p>
 
 ## Identity model
-<p align="justify">The previous project <a href="https://github.com/falpi/osb-jwt-provider">osb-jwt-provider</a> offered several identity mapping strategies (direct identity, claim identity, mapped identity through a "Service Account", combined identity through a validation script). This project adopts a single, explicit model that combines the strengths of those strategies:</p>
+<p align="justify">The previous project <a href="https://github.com/falpi/osb-jwt-provider">osb-jwt-provider</a> offered several identity mapping strategies (direct identity, claim identity, mapped identity through a "Service Account", combined identity through a validation script). This project adopts a single, explicit model that combines the strengths of those strategies (the identity asserter of osb-jwt-provider is still included in the package, unchanged, to ease the migration: see <a href="LEGACY.md">LEGACY.md</a>):</p>
 
 1. **The IDP proves who the client is**: the client_id is taken from the claim declared for the issuer (`appid`, `azp`, ...), only after the signature has been verified.
 2. **The OSB decides who the client is for WebLogic**: the client_id is reverse-translated into a readable logical name (e.g. `consumer-a`) through ResourceMappings, and the logical name is translated into a realm user (e.g. `consumer_a`) by the identities of the policies. The realm user can be an existing Basic Auth user, so consumers can migrate to JWT without re-profiling.

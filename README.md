@@ -18,6 +18,8 @@ The code base is cross-compiled for Oracle Service Bus 12.2.1.4 (JDK 8) and 14.1
 ## Project history
 <p align="justify">This project, <b>osb-jwt-providers</b> (<a href="https://github.com/falpi/osb-jwt-providers">https://github.com/falpi/osb-jwt-providers</a>), is the evolution of the earlier project <b>osb-jwt-provider</b> (<a href="https://github.com/falpi/osb-jwt-provider">https://github.com/falpi/osb-jwt-provider</a>), which offered only the inbound side: a single Custom Identity Asserter configured through MBean attributes. It extends that work with the outbound provider and with a new, policy-based configuration model shared by both providers. Since the differences are radical (configuration model, MBean attributes, package name), the sources are published in a new repository and the release numbering starts again from <b>1.0</b>. From now on the package and each provider have their own version (see <a href="#versioning">Versioning</a>). Installations of the old project must be migrated as described in <a href="#migrating-from-osb-jwt-provider">Migrating from osb-jwt-provider</a>.</p>
 
+<p align="justify">To make that migration easier, the package also contains the <b>legacy inbound provider</b> of osb-jwt-provider, <code>CustomIdentityAsserter</code> (release 1.2.0), adapted to the same osb-commons library as the new providers and integrated in the same jar. Its MBean type, attributes and behaviour are those of osb-jwt-provider 1.2, so an existing realm keeps working when the old jar is replaced by this package, and the Proxy Services can be moved to the new inbound provider one at a time. The legacy provider is not developed further: it is documented, as it was, in <a href="LEGACY.md">LEGACY.md</a> (the README of osb-jwt-provider 1.2).</p>
+
 <p align="center"><img src="doc/images/architecture.svg" /></p>
 
 ## What's new compared with osb-jwt-provider
@@ -54,6 +56,7 @@ Document | Content
 [README.md](README.md) | This file: overview, installation, common configuration, build, logging.
 [INBOUND.md](INBOUND.md) | Inbound provider: token types, Proxy Service configuration, parameters, inbound policies, identity model, processing flow, logs.
 [OUTBOUND.md](OUTBOUND.md) | Outbound provider: Business Service configuration, parameters, outbound policies, templates, keys and secrets, processing flow, logs.
+[LEGACY.md](LEGACY.md) | Legacy inbound provider `CustomIdentityAsserter` of osb-jwt-provider, included in the package for the migration: the original README of release 1.2, unchanged.
 [CustomAuthenticators-Guide.html](doc/CustomAuthenticators-Guide.html) | Complete user, developer and reference guide (classes, methods, build pipeline, error reference, troubleshooting).
 [CustomAuthenticators-Issues.html](doc/CustomAuthenticators-Issues.html) | Open weaknesses, vulnerabilities and improvements, with file and line references.
 [osb/OAUTH2](osb/OAUTH2) | Sample OSB configuration project with all the resources, fictitious values only.
@@ -63,10 +66,24 @@ Document | Content
 
 ```<WEBLOGIC_HOME>/wlserver/server/lib/mbeantypes```
 
-<p align="justify">The build produces a single jar, <code>osb-jwt-providers-1.0.0.jar</code>, that contains both providers. By default (<code>mergeLibraries=false</code>) the osb-commons library is not included: copy into the same folder also the osb-commons jar of the same target (<code>osb-commons-&lt;version&gt;-fmw_&lt;target&gt;.jar</code>, the one the build takes from <code>lib</code>). On a server installation both jars must be copied on every machine of the domain.<br/><br/>Keep exactly one copy of the provider jar and one copy of osb-commons in the folder. WebLogic loads all the jars of <code>mbeantypes</code> in a single class loader whose search order depends on the file names, not on the jar a class comes from: two copies of the same classes (two osb-commons versions, or an osb-commons jar plus a provider jar built with <code>mergeLibraries=true</code>) are resolved unpredictably and can make the realm fail at boot with errors such as <code>NoSuchFieldError</code> or <code>NoSuchMethodError</code>. A single osb-commons jar can instead be shared with other extensions built on the same version, such as release 1.2 of osb-jwt-provider (see <a href="#migrating-from-osb-jwt-provider">Migrating from osb-jwt-provider</a>).<br/><br/></p>
+<p align="justify">The build produces a single jar, <code>osb-jwt-providers-1.0.0.jar</code>, that contains the two providers, the legacy provider <code>CustomIdentityAsserter</code> (see <a href="#project-history">Project history</a>) and, by default (<code>mergeLibraries=true</code>), also the osb-commons library with its third-party libraries: it is the only file to copy, on every machine of the domain in a server installation.<br/><br/>If you prefer to keep the library in a file of its own, for example because the same osb-commons jar is shared with other extensions of the domain, build the package with <code>mergeLibraries=false</code> (see <a href="#build-instructions">Build instructions</a>) and copy into the same folder also the osb-commons jar of the same target (<code>osb-commons-&lt;version&gt;-fmw_&lt;target&gt;.jar</code>, the one the build takes from <code>lib</code>).<br/><br/>Keep exactly one copy of every class in the folder. WebLogic loads all the jars of <code>mbeantypes</code> in a single class loader whose search order depends on the file names, not on the jar a class comes from: two copies of the same classes (two osb-commons versions, a merged package plus a separate osb-commons jar, or this package plus the jar of osb-jwt-provider) are resolved unpredictably and can make the realm fail at boot with errors such as <code>NoSuchFieldError</code> or <code>NoSuchMethodError</code>. The <code>deploy</code> target of the build, which installs the package into the WebLogic installation used for development, removes from <code>mbeantypes</code> the previous <code>osb-jwt-providers-*</code> jars, the <code>osb-jwt-provider-*</code> jars of the old project and, when the libraries are merged, the separate <code>osb-commons-*</code> jars; on the servers of the domain the same files must be removed by hand.<br/><br/></p>
+
+#### If the old provider is installed
+<p align="justify">If the domain uses osb-jwt-provider (release 1.1.0 or 1.2.0), this package replaces its jar:</p>
+
+1. Stop the servers and remove from <code>mbeantypes</code> the jar <code>osb-jwt-provider-*.jar</code> and the osb-commons jar it used (<code>osb-commons-1.0.0*.jar</code> for release 1.1.0, <code>osb-commons-1.1.0*.jar</code> for release 1.2.0). With the default merged package no separate osb-commons jar must remain; with a separate build keep only the osb-commons jar of the version required by the package. Then copy the new package.
+2. Leave the realm as it is: the legacy provider keeps the MBean type <code>CustomIdentityAsserter</code>, so the existing instance and its attributes in <code>config.xml</code> are loaded from the new package without changes, and the Proxy Services keep working with their token types.
+3. Coming from release 1.1.0, check before restarting the behaviour changes of release 1.2 described in <a href="LEGACY.md#release-12">LEGACY.md</a>.
+4. Create the new providers and migrate the Proxy Services as described in <a href="#migrating-from-osb-jwt-provider">Migrating from osb-jwt-provider</a>.
 
 #### Making the outbound authentication class visible to OSB
-<p align="justify">The jars of <code>mbeantypes</code> are loaded by the class loader of the security providers, which OSB does not use: the HTTP transport of a Business Service with <i>Custom Authentication</i> loads the outbound authentication class from the classpath of the server. The Oracle documentation on custom outbound authentication (see references) does not explain how to make the class visible; as indicated by Oracle support, the provider package and the osb-commons jar must be added to the server classpath in the domain script <code>setDomainEnv</code>, in the assignment of <code>POST_CLASSPATH</code> that contains <code>servicebus-common.jar</code>:</p>
+<p align="justify">The jars of <code>mbeantypes</code> are loaded by the class loader of the security providers, which OSB does not use: the HTTP transport of a Business Service with <i>Custom Authentication</i> loads the outbound authentication class from the classpath of the server. The Oracle documentation on custom outbound authentication (see references) does not explain how to make the class visible; as indicated by Oracle support, the provider package (and the osb-commons jar, when it is built separately) must be added to the server classpath in the domain script <code>setDomainEnv</code>, in the assignment of <code>POST_CLASSPATH</code> that contains <code>servicebus-common.jar</code>:</p>
+
+```bat
+set POST_CLASSPATH=<WEBLOGIC_HOME>\osb\lib\servicebus-common.jar;<WEBLOGIC_HOME>\wlserver\server\lib\mbeantypes\osb-jwt-providers-<packageVersion>.jar;%POST_CLASSPATH%
+```
+
+<p align="justify">With a separate build (<code>mergeLibraries=false</code>) list also the osb-commons jar:</p>
 
 ```bat
 set POST_CLASSPATH=<WEBLOGIC_HOME>\osb\lib\servicebus-common.jar;<WEBLOGIC_HOME>\wlserver\server\lib\mbeantypes\osb-commons-<version>-fmw_<target>.jar;<WEBLOGIC_HOME>\wlserver\server\lib\mbeantypes\osb-jwt-providers-<packageVersion>.jar;%POST_CLASSPATH%
@@ -74,7 +91,7 @@ set POST_CLASSPATH=<WEBLOGIC_HOME>\osb\lib\servicebus-common.jar;<WEBLOGIC_HOME>
 
 - The script is <code>&lt;DOMAIN_HOME&gt;\bin\setDomainEnv.cmd</code> (<code>setDomainEnv.sh</code> on Linux/Unix, same assignment with <code>:</code> as separator); for the domain integrated in JDeveloper it is in <code>%APPDATA%\JDeveloper\system&lt;version&gt;\DefaultDomain\bin</code>.
 - Reference the same files copied into <code>mbeantypes</code>, without a second copy elsewhere. The build deploys the package with a stable name (<code>osb-jwt-providers-&lt;packageVersion&gt;.jar</code>), so the entry changes only when the package or the osb-commons version changes; if a dated jar is copied by hand from <code>deploy</code>, use its exact name.
-- The step is needed only by the outbound provider: the inbound provider is loaded from <code>mbeantypes</code> by WebLogic.
+- The step is needed only by the outbound provider: the inbound providers (also the legacy one) are loaded from <code>mbeantypes</code> by WebLogic.
 - Apply it on every machine of the domain and restart the servers; for servers not started through the domain scripts, add the same entries to the class path of their server start configuration.
 
 <p align="justify">Once you have restarted WebLogic, as shown in the following screenshots, you just need to create the providers using the "Providers" tab of the Realm settings in the WebLogic Console:</p>
@@ -89,24 +106,21 @@ set POST_CLASSPATH=<WEBLOGIC_HOME>\osb\lib\servicebus-common.jar;<WEBLOGIC_HOME>
 <p align="justify">Then open each provider, tab "Configuration → Provider Specific", set the parameters described in the specific documents and activate the changes. Most parameters are dynamic: they are read again at every request, so changes take effect without restart (except <code>KERBEROS_CONFIGURATION</code>, read at initialization).</p>
 
 ## Migrating from osb-jwt-provider
-<p align="justify">The old configuration is not reused: the MBean attributes have changed and are replaced by the XML resources. The migration can be done at once or gradually.</p>
+<p align="justify">The configuration of the old provider is not reused by the new inbound provider: the MBean attributes have changed and are replaced by the XML resources. Since the legacy provider is part of this package (see <a href="#project-history">Project history</a>), the old and the new identity asserter can work side by side with a single jar, and the migration can be done at once or gradually.</p>
 
 #### Switch-off (e.g. test environments)
 
-1. Stop the servers and remove the old <code>osb-jwt-provider-*.jar</code> and its <code>osb-commons-1.0.0*.jar</code> from <code>mbeantypes</code> (the build of this project replaces only <code>osb-jwt-providers-*</code> files, so the old jars are not removed automatically).
-2. Copy <code>osb-jwt-providers-1.0.0.jar</code> and the osb-commons jar of the same target, then restart.
-3. In the realm, delete the old identity asserter and create the new providers as described above: the MBean attributes have changed (<code>JWT_KEYS_*</code>, <code>JWT_IDENTITY_*</code>, <code>VALIDATION_ASSERTION</code> no longer exist) and are replaced by the XML resources.
-4. Create the configuration project (next section) and move the old settings: JWKS URL and key cache into the inbound providers, the identity mapping service account into ResourceMappings plus the inbound identities, the validation script into issuers and audiences.
-5. Proxy Services keep the same token types (<code>CIA.*</code>), so their transport configuration does not change.
+1. Install the package as described in <a href="#if-the-old-provider-is-installed">If the old provider is installed</a>.
+2. In the realm, delete the old identity asserter and create the new providers as described above: the MBean attributes have changed (<code>JWT_KEYS_*</code>, <code>JWT_IDENTITY_*</code>, <code>VALIDATION_ASSERTION</code> no longer exist) and are replaced by the XML resources.
+3. Create the configuration project (next section) and move the old settings: JWKS URL and key cache into the inbound providers, the identity mapping service account into ResourceMappings plus the inbound identities, the validation script into issuers and audiences.
+4. Proxy Services keep the same token types (<code>CIA.*</code>), so their transport configuration does not change.
 
 #### Gradual migration (e.g. production)
-<p align="justify">The two projects can coexist in the same domain only if every class exists once in <code>mbeantypes</code>. WebLogic loads all the jars of <code>mbeantypes</code> in a single class loader whose search order depends on the file names, not on the jar a class comes from: two copies of the same classes (two osb-commons versions, or an osb-commons jar plus a provider jar built with <code>mergeLibraries=true</code>) are resolved unpredictably and can make the realm fail at boot with errors such as <code>NoSuchFieldError</code> or <code>NoSuchMethodError</code>.</p>
 
-1. Use release 1.2 of osb-jwt-provider, which is built on the same osb-commons version as this project.
-2. Keep in <code>mbeantypes</code> the jar of osb-jwt-provider 1.2, the jar of this project and a single osb-commons jar, all without merged libraries (<code>mergeLibraries=false</code> in both builds).
-3. Give the two identity asserters different active token types, for example <code>CIA.JWT+BASIC</code> to the old one and <code>CIA.JWT+BASIC#1</code> to the new one.
-4. Migrate the Proxy Services one at a time by changing their token type; restoring the previous token type rolls a proxy back, without restarts or realm changes.
-5. When the last Proxy Service has moved, remove the old provider from the realm and its jar from <code>mbeantypes</code>.
+1. Install the package as described in <a href="#if-the-old-provider-is-installed">If the old provider is installed</a>: the old identity asserter keeps working, now loaded from the new package.
+2. Create the new providers and the configuration project, giving the two identity asserters different active token types, for example <code>CIA.JWT+BASIC</code> to the old one and <code>CIA.JWT+BASIC#1</code> to the new one.
+3. Migrate the Proxy Services one at a time by changing their token type; restoring the previous token type rolls a proxy back, without restarts or realm changes.
+4. When the last Proxy Service has moved, delete the old identity asserter from the realm; its classes stay in the package, unused.
 
 ## Configuration project
 <p align="justify">The policies and the secrets used at runtime are ordinary OSB resources. They can live in any OSB project; the recommended layout is a dedicated project named <code>OAUTH2</code>, organized as follows. Each MBean path parameter points to one of these resources.</p>
@@ -246,31 +260,31 @@ Variable                      | Replaced by
 Other important configuration options are as follows:
 ```xml
     <property name="embedSources" value="false"/>
-    <property name="mergeLibraries" value="false"/>
+    <property name="mergeLibraries" value="true"/>
 ```
-<p align="justify">The first one checks if you want to include the sources in the deploy package. The second one checks if you want to produce a "fat" (or "merged") jar archive that includes the dependencies; it is <code>false</code> by default.<br/><br/>
-All dependencies have been separated from the project and concentrated in the osb-commons library (see credits). The build takes it from the <code>lib</code> folder with the pattern <code>*-fmw_&lt;version&gt;.jar</code>, so the osb-commons jar must be built for the same target and copied there first. Keeping it separate (the default) lets a single copy be shared with other OSB extensions and with the old provider during a gradual migration; the build does not copy it into <code>mbeantypes</code>, so it is installed once by hand. Merge it only when the provider jar is the only user of osb-commons in the domain.</p>
+<p align="justify">The first one checks if you want to include the sources in the deploy package. The second one checks if you want to produce a "fat" (or "merged") jar archive that includes the dependencies; it is <code>true</code> by default.<br/><br/>
+All dependencies have been separated from the project and concentrated in the osb-commons library (see credits). The build takes it from the <code>lib</code> folder with the pattern <code>*-fmw_&lt;version&gt;.jar</code>, so the osb-commons jar must be built for the same target and copied there first. By default it is merged into the package, so that a single file is installed (also in <code>POST_CLASSPATH</code>) and no other copy of the library can conflict with it. You can always build with <code>mergeLibraries=false</code> to keep two separate files, for example when the same osb-commons jar is shared with other extensions of the domain: the build does not copy it into <code>mbeantypes</code>, so it is installed once by hand (see <a href="#installation">Installation</a>).</p>
 
-<p align="justify">The build runs WebLogic MBeanMaker on the two MBean definition files and then applies two customizations to the generated code: the BeanInfo classes reorder the attributes following the definition files (the console would otherwise sort them alphabetically; the generator template is patched before MBeanMaker runs, see <a href="#design-notes">Design notes</a>), and the setter of the outbound <code>ENCRYPTION_HELPER</code> attribute encrypts the value with the domain key. The resulting package is named <code>deploy/osb-jwt-providers-1.0.0.&lt;yyyyMMdd&gt;-fmw_&lt;version&gt;.jar</code>; name and version are set by the <code>packageName</code> and <code>packageVersion</code> properties of <code>build.xml</code>, and the manifest of the jar records the package and the two provider versions (see <a href="#versioning">Versioning</a>).</p>
+<p align="justify">The build runs WebLogic MBeanMaker on the MBean definition files (the two providers and the legacy provider) and then applies two customizations to the generated code: the BeanInfo classes reorder the attributes following the definition files (the console would otherwise sort them alphabetically; the generator template is patched before MBeanMaker runs, see <a href="#design-notes">Design notes</a>), and the setter of the outbound <code>ENCRYPTION_HELPER</code> attribute encrypts the value with the domain key. The resulting package is named <code>deploy/osb-jwt-providers-1.0.0.&lt;yyyyMMdd&gt;-fmw_&lt;version&gt;.jar</code>; name and version are set by the <code>packageName</code> and <code>packageVersion</code> properties of <code>build.xml</code>, and the manifest of the jar records the package and the provider versions (see <a href="#versioning">Versioning</a>).</p>
 
 <p align="justify">The repository contains two projects already prepared for JDeveloper 12.2.1.4 and 14.1.2 installation on Windows operating system. You could install JDeveloper with respective versions of Oracle SOA Suite Quick Start for Developers (see references). Ant compilation can be triggered from JDeveloper by right-clicking on the "build.xml" file and selecting the "all" target or from the command line by running the "build-xxx.cmd" Windows batch. Note that cross-compilation is supported, meaning that you can compile the provider for a different version target than JDeveloper, provided that the dependency libraries are accessible and configured correctly in the Ant build targets.</p>
 
-At the end of the compilation the jar archive is automatically copied as ```osb-jwt-providers-1.0.0.jar``` into the ```<WEBLOGIC_HOME>/wlserver/server/lib/mbeantypes``` folder from which WebLogic loads the security providers at startup, so you can directly launch the WebLogic environment integrated into JDeveloper to test the providers after build. The user running the build needs write permission on that folder: if the WebLogic installation grants it only to administrators, the deploy fails with <code>java.nio.file.AccessDeniedException</code>. In that case grant the permission once, from a prompt opened as administrator, for example <code>icacls "&lt;WEBLOGIC_HOME&gt;\wlserver\server\lib\mbeantypes" /grant "&lt;user&gt;:(OI)(CI)M"</code>.
+At the end of the compilation the jar archive is automatically copied as ```osb-jwt-providers-1.0.0.jar``` into the ```<WEBLOGIC_HOME>/wlserver/server/lib/mbeantypes``` folder from which WebLogic loads the security providers at startup, so you can directly launch the WebLogic environment integrated into JDeveloper to test the providers after build. Before copying it, the build removes from that folder the jars that would duplicate its classes (see <a href="#installation">Installation</a>). The user running the build needs write permission on that folder: if the WebLogic installation grants it only to administrators, the deploy fails with <code>java.nio.file.AccessDeniedException</code>. In that case grant the permission once, from a prompt opened as administrator, for example <code>icacls "&lt;WEBLOGIC_HOME&gt;\wlserver\server\lib\mbeantypes" /grant "&lt;user&gt;:(OI)(CI)M"</code>.
 
 ## Versioning
 <p align="justify">The project uses two independent levels of versioning, because the two providers have their own development cycles while every release always ships both of them in a single package.</p>
 
 Level | Where it is declared | What it identifies | When to change it
 ----- | -------------------- | ------------------ | -----------------
-Provider | Default of the read-only MBean attribute `Version` in the definition file of the provider (`CustomInboundAuthenticator.xml`, `CustomOutboundAuthenticator.xml`) | The code and the MBean of that provider | When that provider changes; the other provider keeps its version
-Package | Property `packageVersion` in `build.xml` | A release of the jar, which always contains both providers (and, when merged, osb-commons and its libraries) | At every release, also when only libraries or build change
+Provider | Default of the read-only MBean attribute `Version` in the definition file of the provider (`CustomInboundAuthenticator.xml`, `CustomOutboundAuthenticator.xml`; `CustomIdentityAsserter.xml` for the legacy provider) | The code and the MBean of that provider | When that provider changes; the other provider keeps its version
+Package | Property `packageVersion` in `build.xml` | A release of the jar, which always contains both providers and the legacy provider (and, when merged, osb-commons and its libraries) | At every release, also when only libraries or build change
 
 <p align="justify">The package version is deliberately not derived from the versions of the providers (for example as their maximum): two different releases could get the same number, and a release that only updates a library would not change it. A simple rule, in the spirit of semantic versioning, is to raise the <b>major</b> number of the package when a provider changes its major number or the configuration (MBean attributes, XML schemas) changes in an incompatible way, the <b>minor</b> number for new features of a provider or of the package, and the <b>patch</b> number for everything else, including library updates.</p>
 
 <p align="justify">The provider version is shown in the WebLogic console (attribute <code>Version</code> of the provider) and in the <code>Provider Title</code> line of the initialization log. The package version is in the name of the jar (<code>osb-jwt-providers-&lt;packageVersion&gt;.&lt;yyyyMMdd&gt;-fmw_&lt;version&gt;.jar</code> in <code>deploy</code>, <code>osb-jwt-providers-&lt;packageVersion&gt;.jar</code> in <code>mbeantypes</code>) and in its manifest.</p>
 
 #### Package manifest
-<p align="justify">The build writes in the manifest of the jar the identification of the package together with the versions of the two providers it contains, so that every jar tells exactly what it is, even outside the server. Nothing is declared twice: the provider versions are read by the build from the MBean definition files, and the build stops with <code>MBean version not found</code> if a version is missing or is not numeric (<code>n</code>, <code>n.n</code>, <code>n.n.n</code>, ...).</p>
+<p align="justify">The build writes in the manifest of the jar the identification of the package together with the versions of the providers it contains, so that every jar tells exactly what it is, even outside the server. Nothing is declared twice: the provider versions are read by the build from the MBean definition files, and the build stops with <code>MBean version not found</code> if a version is missing or is not numeric (<code>n</code>, <code>n.n</code>, <code>n.n.n</code>, ...).</p>
 
 Attribute | Source | Example
 --------- | ------ | -------
@@ -278,10 +292,11 @@ Attribute | Source | Example
 `Implementation-Version` | `packageVersion` in `build.xml` | `1.0.0`
 `Build-Date` | build date (`yyyyMMdd`) | `20261003`
 `Build-Target` | target of the build (`fmw_<weblogicVersion>`) | `fmw_12.2.1`
+`Legacy-Version` | `Version` of `CustomIdentityAsserter.xml` (legacy provider) | `1.2.0`
 `Inbound-Version` | `Version` of `CustomInboundAuthenticator.xml` | `1.0.0`
 `Outbound-Version` | `Version` of `CustomOutboundAuthenticator.xml` | `1.0.0`
 
-<p align="justify">The first three lines of the manifest are added by Ant itself (<code>Created-By</code> is the JDK that runs Ant, not the target JDK: the target is given by <code>Build-Target</code>). When libraries are merged (<code>mergeLibraries=true</code>) their manifests are discarded, so the jar always contains only this one. To read it:</p>
+<p align="justify">The first three lines of the manifest are added by Ant itself (<code>Created-By</code> is the JDK that runs Ant, not the target JDK: the target is given by <code>Build-Target</code>). When libraries are merged (<code>mergeLibraries=true</code>, the default) their manifests are discarded, so the jar always contains only this one. To read it:</p>
 
 ```bash
 unzip -p osb-jwt-providers-1.0.0.jar META-INF/MANIFEST.MF
@@ -295,11 +310,12 @@ Implementation-Title: osb-jwt-providers
 Implementation-Version: 1.0.0
 Build-Date: 20261003
 Build-Target: fmw_12.2.1
+Legacy-Version: 1.2.0
 Inbound-Version: 1.0.0
 Outbound-Version: 1.0.0
 ```
 
-<p align="justify">At startup each provider reads the manifest of the jar it was loaded from and writes it in the <code>Package Title</code> line of the initialization log (see <a href="#log-management">Log Management</a>). If the jar has no such attributes, or the jar cannot be located, the line shows <code>unknown</code> and the initialization goes on.</p>
+<p align="justify">At startup the inbound and outbound providers read the manifest of the jar they were loaded from and write it in the <code>Package Title</code> line of the initialization log (see <a href="#log-management">Log Management</a>). If the jar has no such attributes, or the jar cannot be located, the line shows <code>unknown</code> and the initialization goes on.</p>
 
 ## Log Management
 The log messages generated by the providers follow the following format: ```<timestamp> <module> <sequence> <level> <message>```.<br/>
@@ -327,7 +343,7 @@ Token              | Format
 ... <INFO>  Provider Type .........: INBOUND
 ... <INFO>  Provider Name .........: CustomOAuth2Inbound
 ... <INFO>  Provider Title ........: Custom Inbound Authenticator (1.0.0)
-... <INFO>  Package Title .........: osb-jwt-providers 1.0.0 (20261003, fmw_12.2.1, inbound 1.0.0, outbound 1.0.0)
+... <INFO>  Package Title .........: osb-jwt-providers 1.0.0 (20261003, fmw_12.2.1, legacy 1.2.0, inbound 1.0.0, outbound 1.0.0)
 ... <INFO>  ------------------------------------------------------------------------------------------
 ... <INFO>  JWT Provider ..........: org.falpi.utils.jwt.JWTProviderNimbusShadedImpl
 ... <INFO>  Kerberos Config .......: C:\Temp\krb5-4823829319811767945.conf
