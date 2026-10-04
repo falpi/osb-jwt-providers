@@ -648,7 +648,7 @@ public abstract class CustomAuthenticator {
 
          // Se richiesto propaga l'eccezione, altrimenti genera logging di WARN e restituisce comunque la risorsa
          if (BolException) throw ObjException;
-         Logger.logMessage(LogLevel.WARN,"Resource validation error ("+StrResourcePath+")",ObjException);
+         Logger.logMessage(LogLevel.ERROR,"Resource validation error ("+StrResourcePath+")",ObjException);
       }
 
       // Restituisce la risorsa

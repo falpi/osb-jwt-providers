@@ -350,9 +350,13 @@ Token              | Format
 ... <INFO>  Scripting Engine ......: Oracle Nashorn (1.8.0_391)
 ... <INFO>  Scripting Language ....: ECMAScript (ECMA - 262 Edition 5.1)
 ... <INFO>  ------------------------------------------------------------------------------------------
+... <INFO>  Assertion Filter ......: oracle.osb.transports.main.httptransport
 ```
 
 <p align="justify">Please note that at DEBUG level the values of the headers added to requests are logged, and at TRACE level also the token requests and responses of the outbound provider, which contain client secrets, client assertions and access tokens. Do not keep these levels active in production, or restrict them to specific requests with DEBUGGING_ASSERTION.</p>
+
+#### Identity assertion failures in the server log
+<p align="justify">When an identity assertion fails, the OSB HTTP transport logs its own error (<code>OSB-381327</code>, <i>Transport-level custom token identity assertion failed</i>) followed by the full stack trace of the WebLogic security framework, which adds nothing to the reason already logged by the inbound provider. At initialization the inbound provider installs a filter on the OSB logger <code>oracle.osb.transports.main.httptransport</code> that removes the stack trace from these records only (a <code>LoginException</code> with code <code>Security:090377</code>): the OSB error line is kept together with the first line of the exception, which carries the code <code>Security:090377</code> and the reason (so monitoring tools and IDS that look for repeated authentication failures in the WebLogic logs still find it), while every other message of the transport is untouched and an existing filter of that logger is preserved. The filter is shared by all the inbound instances and removed with the last one; it also applies to the assertions of the legacy provider, which go through the same OSB logger. The initialization log reports it with the line <code>Assertion Filter</code>; if it cannot be installed a WARN is logged and the server starts normally.</p>
 
 ## Threading Mode
 <p align="justify">The provider code base was designed to be thread-safe because Identity Asserters and outbound authentication classes in WebLogic and OSB are called in parallel and this is their normal behavior. If multiple requests arrive at the same time the server allocates a different thread for each request. The state of each request is kept in thread-local objects, removed at the end of every request also when it fails (so that tokens and secrets do not remain on the pooled server threads), while the caches of signing keys and access tokens are shared.<br/><br/>

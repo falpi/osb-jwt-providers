@@ -587,7 +587,9 @@ ${current.epoch}+300</pre>
 ... &lt;INFO&gt;  Kerberos Config .......: C:\Temp\krb5-4823829319811767945.conf
 ... &lt;INFO&gt;  Scripting Engine ......: Oracle Nashorn (1.8.0_391)
 ... &lt;INFO&gt;  Scripting Language ....: ECMAScript (ECMA - 262 Edition 5.1)
-... &lt;INFO&gt;  ------------------------------------------------------------------------------------------</pre>
+... &lt;INFO&gt;  ------------------------------------------------------------------------------------------
+... &lt;INFO&gt;  Assertion Filter ......: oracle.osb.transports.main.httptransport</pre>
+<p>The last line is written only by the inbound provider: it installs a <code>java.util.logging.Filter</code> (<code>CustomInboundAuthenticator.AssertionTraceFilter</code>) on the OSB logger <code>oracle.osb.transports.main.httptransport</code>, which removes the stack trace from the OSB error <code>OSB-381327</code> logged for every failed identity assertion (records whose exception is a <code>LoginException</code> with <code>Security:090377</code>): the exception is replaced by a copy with the same type and message and an empty stack trace, so the OSB line and the exception line with <code>Security:090377</code> and the reason stay in the WebLogic/ODL logs (for monitoring and IDS), other transport messages and any existing filter are untouched. The filter is installed once (reference count of the active inbound instances, strong static reference to the logger) and the previous filter is restored when the last instance shuts down, so no provider class stays referenced by the platform logger after a realm restart. Failures to install it are logged at WARN and do not stop the boot.</p>
 <h3>11.2 Inbound request (DEBUG, abridged)</h3>
 <pre>... &lt;DEBUG&gt; INBOUND AUTH
 ... &lt;DEBUG&gt; CONFIGURATION
@@ -682,7 +684,8 @@ ${current.epoch}+300</pre>
 <tr><th>Member</th><th>Line</th><th>Purpose</th></tr>
 <tr><td><code>TokenTypes</code></td><td>71</td><td>Token type constants (<code>CIA.*</code>).</td></tr>
 <tr><td><code>initialize(...)</code></td><td>120</td><td><code>init</code> + registration by provider name.</td></tr>
-<tr><td><code>shutdown()</code></td><td>129</td><td><code>done</code> and removal of the instance from the registry.</td></tr>
+<tr><td><code>shutdown()</code></td><td>129</td><td><code>done</code>, removal of the instance from the registry and release of the transport log filter.</td></tr>
+<tr><td><code>AssertionTraceFilter</code>, <code>installTransportFilter()</code>, <code>removeTransportFilter()</code></td><td>104, 201, 215</td><td>Filter of the OSB HTTP transport logger that strips the stack trace of failed identity assertions (§11.1).</td></tr>
 <tr><td><code>assertIdentity(String,Object,ContextHandler)</code></td><td>164</td><td>Entry point; creates logger/config/context, runs serial or parallel implementation, cleans the thread in <code>finally</code>.</td></tr>
 <tr><td><code>assertIdentityAsynchImpl</code></td><td>204</td><td>Config log and checks, token type and scheme detection, dispatch to Basic/JWT, headers, INFO line, callback.</td></tr>
 <tr><td><code>manageBasicAuthInbound</code></td><td>389</td><td>Basic credentials against the embedded LDAP.</td></tr>

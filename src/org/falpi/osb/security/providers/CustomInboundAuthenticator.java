@@ -20,6 +20,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.security.auth.callback.CallbackHandler;
 import javax.security.auth.login.AppConfigurationEntry;
+import javax.security.auth.login.LoginException;
 
 import weblogic.security.service.ContextHandler;
 import weblogic.security.spi.AuthenticationProviderV2;
@@ -62,6 +63,12 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
    public static final String CUSTOM_REQUEST_HEADERS    = "CUSTOM_REQUEST_HEADERS";
    public static final String CUSTOM_RESPONSE_HEADERS   = "CUSTOM_RESPONSE_HEADERS";
 
+   // Logger del trasporto HTTP di OSB che registra i fallimenti di asserzione delle identita' (messaggio OSB-381327)
+   public static final String OSB_HTTP_TRANSPORT_LOGGER = "oracle.osb.transports.main.httptransport";
+
+   // Codice WebLogic presente nel messaggio della LoginException generata da un fallimento di asserzione
+   public static final String IDENTITY_ASSERTION_FAILED = "Security:090377";
+
    // ##################################################################################################################################
    // Sottoclassi 
    // ##################################################################################################################################
@@ -89,6 +96,36 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
                        CustomInboundAuthenticator.TokenTypes.JWT_TYPE1,CustomInboundAuthenticator.TokenTypes.ALL_TYPE1, 
                        CustomInboundAuthenticator.TokenTypes.JWT_TYPE2,CustomInboundAuthenticator.TokenTypes.ALL_TYPE2);
    }
+
+   // ==================================================================================================================================
+   // Filtro del logger del trasporto HTTP di OSB: rimuove lo stack trace dai fallimenti di asserzione delle identita'
+   // (la causa e' gia' registrata dal provider, OSB aggiungerebbe solo lo stack trace del framework di sicurezza)
+   // ==================================================================================================================================
+   protected static class AssertionTraceFilter implements java.util.logging.Filter {
+
+      // Filtro eventualmente gia' presente sul logger, preservato e ripristinato alla rimozione
+      protected final java.util.logging.Filter previous;
+
+      AssertionTraceFilter(java.util.logging.Filter ObjPreviousFilter) {
+         previous = ObjPreviousFilter;
+      }
+
+      @Override
+      public boolean isLoggable(java.util.logging.LogRecord ObjRecord) {
+
+         // Se il record riporta un fallimento di asserzione delle identita' sostituisce l'eccezione con una copia senza stack trace:
+         // resta la riga con tipo, codice Security:090377 e motivo (utile a monitoraggio e IDS), sparisce lo stack del framework
+         Throwable ObjThrown = ObjRecord.getThrown();
+         if ((ObjThrown instanceof LoginException)&&(String.valueOf(ObjThrown.getMessage()).contains(IDENTITY_ASSERTION_FAILED))) {
+            LoginException ObjShortException = new LoginException(ObjThrown.getMessage());
+            ObjShortException.setStackTrace(new StackTraceElement[0]);
+            ObjRecord.setThrown(ObjShortException);
+         }
+
+         // Delega l'esito all'eventuale filtro preesistente
+         return (previous==null)||(previous.isLoggable(ObjRecord));
+      }
+   }
    
    // ##################################################################################################################################
    // Variabili
@@ -103,6 +140,19 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
    
    // Registro delle istanze del provider di inbound
    protected static ProviderRegistry ObjInboundRegistry = new ProviderRegistry();
+
+   // Logger del trasporto HTTP di OSB filtrato (riferimento forte: java.util.logging mantiene i logger con riferimenti deboli)
+   protected static java.util.logging.Logger ObjTransportLogger = null;
+
+   // Numero di istanze attive che condividono il filtro del logger
+   protected static int IntTransportFilterUsers = 0;
+
+   // ==================================================================================================================================
+   // Variabili di istanza
+   // ==================================================================================================================================
+
+   // Indica se l'istanza ha installato (o condivide) il filtro del logger del trasporto HTTP
+   protected boolean BolTransportFilter = false;
       
    // ##################################################################################################################################
    // Costruttore
@@ -122,14 +172,57 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
       
       // Richiama costruttore padre
       init(ObjMBean);
-      // Salva l'istanza del provider di inbound nel registry    
-      ObjInboundRegistry.put(ObjProviderContext.providerName,this);                 
+      // Salva l'istanza del provider di inbound nel registry
+      ObjInboundRegistry.put(ObjProviderContext.providerName,this);
+
+      // Installa il filtro degli stack trace di asserzione sul logger del trasporto HTTP di OSB (un errore non blocca l'avvio)
+      LogManager Logger = getLogger();
+      try {
+         installTransportFilter();
+         BolTransportFilter = true;
+         Logger.logMessage(LogLevel.INFO,"Assertion trace filter installed");
+      } catch (Exception ObjException) {
+         Logger.logMessage(LogLevel.WARN,"Assertion trace filter not installed",ObjException);
+      }
    }
 
    @Override
    public void shutdown() {
       done();
       ObjInboundRegistry.remove(ObjProviderContext.providerName,this); // libera il registry: consente un nuovo initialize nella stessa JVM
+
+      // Rilascia il filtro del logger (rimosso con l'ultima istanza, per non lasciare classi del provider nel logger di piattaforma)
+      if (BolTransportFilter) {
+         removeTransportFilter();
+         BolTransportFilter = false;
+      }
+   }
+
+   // ==================================================================================================================================
+   // Installa il filtro sul logger del trasporto HTTP di OSB (una sola volta per tutte le istanze)
+   // ==================================================================================================================================
+   protected static synchronized void installTransportFilter() {
+      if (IntTransportFilterUsers==0) {
+         java.util.logging.Logger ObjLogger = java.util.logging.Logger.getLogger(OSB_HTTP_TRANSPORT_LOGGER);
+         if (!(ObjLogger.getFilter() instanceof AssertionTraceFilter)) {
+            ObjLogger.setFilter(new AssertionTraceFilter(ObjLogger.getFilter()));
+         }
+         ObjTransportLogger = ObjLogger;
+      }
+      IntTransportFilterUsers++;
+   }
+
+   // ==================================================================================================================================
+   // Rimuove il filtro dal logger del trasporto HTTP di OSB con l'ultima istanza, ripristinando quello preesistente
+   // ==================================================================================================================================
+   protected static synchronized void removeTransportFilter() {
+      if ((IntTransportFilterUsers>0)&&(--IntTransportFilterUsers==0)&&(ObjTransportLogger!=null)) {
+         java.util.logging.Filter ObjFilter = ObjTransportLogger.getFilter();
+
+         // Ripristina il filtro precedente solo se quello installato e' ancora il nostro
+         if (ObjFilter instanceof AssertionTraceFilter) ObjTransportLogger.setFilter(((AssertionTraceFilter) ObjFilter).previous);
+         ObjTransportLogger = null;
+      }
    }
 
    @Override
