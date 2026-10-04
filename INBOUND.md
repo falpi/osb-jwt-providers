@@ -66,7 +66,7 @@ Parameter                     | Default   | Description
 <p align="center"><img src="doc/images/inbound-parameters.png" /></p>
 
 ## Inbound Policies
-<p align="justify">The XML resource referenced by <code>JWT_POLICIES_PATH</code> declares which tokens are trusted and which identities are enabled. It is validated against <code>InboundPolicies.xsd</code>.</p>
+<p align="justify">The XML resource referenced by <code>JWT_POLICIES_PATH</code> declares which tokens are trusted and which identities are enabled. It is validated against <code>InboundPolicies.xsd</code>: validation errors are logged but do not block the resource (see <a href="README.md#xml-validation">XML validation</a>).</p>
 
 ```xml
 <inboundPolicies xsi:noNamespaceSchemaLocation="../Schemas/InboundPolicies.xsd" ...>

@@ -60,7 +60,7 @@ Parameter                     | Default   | Description
 <p align="center"><img src="doc/images/outbound-parameters.png" /></p>
 
 ## Outbound Policies
-<p align="justify">The XML resource referenced by <code>JWT_POLICIES_PATH</code> declares how each Business Service authenticates. It is validated against <code>OutboundPolicies.xsd</code>.</p>
+<p align="justify">The XML resource referenced by <code>JWT_POLICIES_PATH</code> declares how each Business Service authenticates. It is validated against <code>OutboundPolicies.xsd</code>: validation errors are logged but do not block the resource (see <a href="README.md#xml-validation">XML validation</a>).</p>
 
 ```xml
 <outboundPolicies xsi:noNamespaceSchemaLocation="../Schemas/OutboundPolicies.xsd" ...>

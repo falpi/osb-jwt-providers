@@ -29,7 +29,7 @@ The code base is cross-compiled for Oracle Service Bus 12.2.1.4 (JDK 8) and 14.1
 - **Inbound policies** (`InboundPolicies.xml`): trusted issuers, IDPs (JWKS URL, key cache, audience), profiles and enabled identities. The `JWT_KEYS_*`, `JWT_IDENTITY_*`, `JWT_IDENTITY_ASSERTION` and `VALIDATION_ASSERTION` attributes are gone. See [INBOUND.md](INBOUND.md).
 - **Stricter inbound validation**: issuer, signature algorithm pinned to RS256, expiry, enabled identity and audience are always checked.
 - **Resource mappings** (`ResourceMappings.xml`): all client_ids and resource GUIDs are addressed by logical names of your choice shared by inbound and outbound; only secrets stay in OSB service accounts.
-- **Schema validation**: every XML resource is validated against the XSD it declares, with caching of the positive outcome.
+- **Schema validation**: every XML resource is validated against the XSD it declares, with caching of the positive outcome; errors are logged but do not block the resource (see <a href="#xml-validation">XML validation</a>).
 - **Common HTTP settings** (`REQUESTS_*`) for proxy, TLS and timeouts of every call to the IDP.
 - **Encryption helper**: passwords of private keys can be stored encrypted with the WebLogic domain key.
 - **Readable faults**: the `error_description` returned by the IDP is reported in the OSB fault.
