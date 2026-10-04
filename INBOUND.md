@@ -45,7 +45,7 @@ Parameter                     | Default   | Description
 `THREADING_MODE`              | PARALLEL  | Multithreading strategy.
 `REQUESTS_SSL_VERIFY`         | ENABLE    | SSL enforcement for the download of the signing keys. Use DISABLE only in non-production environments: with DISABLE a forged key set could be accepted.
 `REQUESTS_CONN_TIMEOUT`       | 5         | Connection timeout for the download of the signing keys (Seconds).
-`REQUESTS_READ_TIMEOUT`       | 5         | Response timeout for the download of the signing keys (Seconds).
+`REQUESTS_READ_TIMEOUT`       | 5         | Response timeout for the download of the signing keys (Seconds): maximum wait for data once connected.
 `REQUESTS_PROXY_MODE`         | DIRECT    | Proxy mediation for the download of the signing keys: DIRECT (no proxy), ANONYMOUS, BASIC, NTLM, KERBEROS (NEGOTIATE).
 `REQUESTS_PROXY_PATH`         |           | OSB resource path (\*) of the "Proxy Server" used to extract proxy host and credentials.
 `BASIC_AUTH`                  | DISABLE   | Allows Basic authentication if it is among those actives in the selected token type.
@@ -56,7 +56,7 @@ Parameter                     | Default   | Description
 `CUSTOM_RESPONSE_HEADERS`     |           | Allows you to inject one or more custom http response headers that will return to client. Each line must follow the format \<header\>=\<value\>.
 `DEBUGGING_ASSERTION`         |           | May contain a javascript text that is used to filter log messages with TRACE or DEBUG level according to arbitrary criteria defined by the user. If present, it must return a Boolean object.
 `DEBUGGING_PROPERTIES`        |           | Allows you to send one or more string expressions to the log file. They are printed as log messages with DEBUG level.
-`KERBEROS_CONFIGURATION`      |           | Content of the krb5.conf file used for KERBEROS proxy authentication.
+`KERBEROS_CONFIGURATION`      |           | Content of the krb5.conf file used for KERBEROS proxy authentication; when empty the Kerberos settings of the server JVM are not touched.
 
 (\*) OSB resources path are constructed as follows: `<project-name>/<root-folder>/.../<parent-folder>/<resource-name>`. Template variables are allowed.<br/>
 (\*\*) `Service: ${osb.service.name}, Identity: ${identity}, Client: ${http.client.host} (${http.client.addr})`<br/>

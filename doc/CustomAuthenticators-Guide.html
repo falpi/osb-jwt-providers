@@ -158,7 +158,7 @@
 <figure><img src="images/new-provider-outbound.png" alt="New outbound provider"><figcaption>Figure 4 – Creating the outbound provider (type CustomOutboundAuthenticator).</figcaption></figure>
 <ul>
   <li><b>Inbound</b>: type <code>CustomInboundAuthenticator</code>. Use <i>Reorder</i> to move it to the top of the list, as for any identity asserter that must handle a header before the default ones. More than one inbound instance may exist (e.g. with different policy files); the token types with suffix <code>#1</code>/<code>#2</code> let each proxy select which instance asserts its tokens.</li>
-  <li><b>Outbound</b>: type <code>CustomOutboundAuthenticator</code>. <b>Exactly one</b> instance is allowed: a second one makes the server stop at boot (see <a href="#threading">§12</a>). The provider takes no part in user logins (it returns no login module), so its position and control flag are not relevant; leave the control flag at <i>OPTIONAL</i>.</li>
+  <li><b>Outbound</b>: type <code>CustomOutboundAuthenticator</code>. <b>Exactly one</b> instance is allowed: a second one makes the server fail at boot (see <a href="#threading">§12</a> and §14.3). The provider takes no part in user logins (it returns no login module), so its position and control flag are not relevant; leave the control flag at <i>OPTIONAL</i>.</li>
 </ul>
 <p>Then open each provider, tab <i>Configuration → Provider Specific</i>, set the parameters (§7.2 and §8.2), save and activate the changes. The attributes are shown in the same order as in the MBean definition files thanks to a customised BeanInfo generated from a patched MBeanMaker template (§13.4).</p>
 <div class="note">Most attributes are dynamic: their value is read again at every request, so changes in the console take effect without restart. <code>KERBEROS_CONFIGURATION</code> is read only at initialization.</div>
@@ -239,7 +239,7 @@
 <p><code>CIA.JWT+BASIC</code> accepts both schemes on the same proxy, which allows a progressive migration of consumers from Basic to OAuth2. The suffixes allow several provider instances, each activating its own types.</p>
 <p>On the proxy service (JDeveloper or OSB console), <i>Transport Details</i>: Authentication = <i>Custom Authentication</i>, Authentication Header = <code>Authorization</code> (mandatory when Basic must be accepted too), Authentication Token Type = one of the active types.</p>
 <figure><img src="images/proxy-transport.png" alt="Proxy transport"><figcaption>Figure 7 – Proxy service transport configuration.</figcaption></figure>
-<p>The header value is inspected as follows (<code>CustomInboundAuthenticator.java:310-331</code>): a value starting with <code>Basic&nbsp;</code> is Basic authentication; anything else is a JWT, with an optional <code>Bearer&nbsp;</code> prefix removed. The detected scheme must be part of the selected token type and enabled by <code>BASIC_AUTH</code> / <code>JWT_AUTH</code>, otherwise the request fails with <i>Token preparation error</i>.</p>
+<p>The header value is inspected as follows (<code>CustomInboundAuthenticator.java:315-336</code>): a value starting with <code>Basic&nbsp;</code> is Basic authentication; anything else is a JWT, with an optional <code>Bearer&nbsp;</code> prefix removed. The detected scheme must be part of the selected token type and enabled by <code>BASIC_AUTH</code> / <code>JWT_AUTH</code>, otherwise the request fails with <i>Token preparation error</i>.</p>
 
 <h3 id="in-params">7.2 MBean parameters</h3>
 <figure><img src="images/inbound-parameters.png" alt="Inbound parameters"><figcaption>Figure 8 – Provider-specific parameters of the inbound provider with sample values.</figcaption></figure>
@@ -251,8 +251,8 @@
 <tr><td><code>LOGGING_INFO</code></td><td>String with templates</td><td><code>Service: ${osb.service.name}, Identity: ${identity}, Client: ${http.client.host} (${http.client.addr})</code></td><td>Summary line logged at INFO at the end of each successful assertion.</td></tr>
 <tr><td><code>THREADING_MODE</code></td><td>SERIAL, PARALLEL</td><td>PARALLEL</td><td>SERIAL serializes the assertions of this provider instance (useful to read debug logs of one request at a time).</td></tr>
 <tr><td><code>REQUESTS_SSL_VERIFY</code></td><td>ENABLE, DISABLE</td><td>ENABLE</td><td>TLS certificate and host name verification for the JWKS download. DISABLE trusts any certificate: test only.</td></tr>
-<tr><td><code>REQUESTS_CONN_TIMEOUT</code></td><td>0,5,…,30</td><td>5</td><td>Connection timeout in seconds (0 = none).</td></tr>
-<tr><td><code>REQUESTS_READ_TIMEOUT</code></td><td>0,5,…,30</td><td>5</td><td>Passed to HttpClient as connection-request timeout (see the issues document: no socket read timeout is set).</td></tr>
+<tr><td><code>REQUESTS_CONN_TIMEOUT</code></td><td>5,10,…,30</td><td>5</td><td>Connection timeout in seconds (also used as timeout to obtain a connection from the HttpClient pool); non-positive values are replaced by 5, as for the read timeout.</td></tr>
+<tr><td><code>REQUESTS_READ_TIMEOUT</code></td><td>5,10,…,30</td><td>5</td><td>Read (socket) timeout in seconds: maximum wait for data once connected. Values that are not positive (possible only in configurations saved before 0 was removed from the legal values) are replaced by 5, so a request can never wait forever.</td></tr>
 <tr><td><code>REQUESTS_PROXY_MODE</code></td><td>DIRECT, ANONYMOUS, BASIC, NTLM, KERBEROS</td><td>DIRECT</td><td>HTTP proxy for outgoing calls and its authentication.</td></tr>
 <tr><td><code>REQUESTS_PROXY_PATH</code></td><td>OSB path</td><td>–</td><td>Proxy Server resource (<code>System/Proxy Servers/&lt;name&gt;</code>); mandatory unless DIRECT. Host, port and credentials are read from it.</td></tr>
 <tr><td><code>BASIC_AUTH</code></td><td>ENABLE, DISABLE</td><td>DISABLE</td><td>Allows Basic authentication when the token type includes it.</td></tr>
@@ -263,7 +263,7 @@
 <tr><td><code>CUSTOM_RESPONSE_HEADERS</code></td><td>Properties <code>name=value</code></td><td>–</td><td>Headers added to the response returned to the consumer.</td></tr>
 <tr><td><code>DEBUGGING_ASSERTION</code></td><td>JavaScript returning Boolean</td><td>–</td><td>When it returns false the level of this request is lowered to INFO (filters debug output to specific requests).</td></tr>
 <tr><td><code>DEBUGGING_PROPERTIES</code></td><td>Lines with templates</td><td>–</td><td>Each line is resolved and logged at DEBUG at the end of the request.</td></tr>
-<tr><td><code>KERBEROS_CONFIGURATION</code></td><td>krb5.conf lines</td><td>–</td><td>Written to a temporary <code>krb5-*.conf</code> at initialization; used for KERBEROS proxy authentication.</td></tr>
+<tr><td><code>KERBEROS_CONFIGURATION</code></td><td>krb5.conf lines</td><td>–</td><td>Written to a temporary <code>krb5-*.conf</code> at initialization and set JVM-wide (<code>java.security.krb5.conf</code>, <code>javax.security.auth.useSubjectCredsOnly=false</code>); used for KERBEROS proxy authentication. When empty, <code>configKerberos</code> is not called and the JVM Kerberos settings are left untouched.</td></tr>
 </table>
 <p>Standard identity asserter attributes (<i>Active Types</i>, <i>Base64 Decoding Required</i>) are on the <i>Common</i> tab. Leave <i>Base64 Decoding Required</i> unchecked.</p>
 
@@ -344,7 +344,7 @@
 <h3 id="out-bs">8.1 Business service setup</h3>
 <p>On the business service, <i>Transport Details</i>: Authentication = <i>Custom Authentication</i>, HTTP Custom Authentication Class Name = <code>org.falpi.osb.security.providers.CustomOutboundAuthenticator</code>. Do <b>not</b> associate a service account: the provider rejects it with <i>Service Account not allowed</i>.</p>
 <figure><img src="images/business-service-transport.png" alt="Business service transport"><figcaption>Figure 10 – Business service transport configuration.</figcaption></figure>
-<p>OSB loads the class from the server classpath and requires it to implement <code>OutboundAuthentication</code> (see the <a href="https://docs.oracle.com/middleware/1213/osb/develop/GUID-966DBF19-BFAD-4755-8F5A-D2CD12D9A933.htm#OSBDV89425">Oracle documentation on custom outbound authentication</a>). The jar in <code>mbeantypes</code> is not enough: the package and osb-commons must also be listed in <code>POST_CLASSPATH</code> of <code>setDomainEnv</code> (§3.3). The realm provider must exist, otherwise each call fails with <i>Custom Outbound provider not configured in security realm</i>.</p>
+<p>OSB loads the class from the server classpath and requires it to implement <code>OutboundAuthentication</code> (see the <a href="https://docs.oracle.com/middleware/1213/osb/develop/GUID-966DBF19-BFAD-4755-8F5A-D2CD12D9A933.htm#OSBDV89425">Oracle documentation on custom outbound authentication</a>). The jar in <code>mbeantypes</code> is not enough: the package (and osb-commons, when built separately) must also be listed in <code>POST_CLASSPATH</code> of <code>setDomainEnv</code> (§3.3). The realm provider must exist, otherwise each call fails with <i>Custom Outbound provider not configured in security realm</i>.</p>
 
 <h3 id="out-params">8.2 MBean parameters</h3>
 <figure><img src="images/outbound-parameters.png" alt="Outbound parameters"><figcaption>Figure 11 – Provider-specific parameters of the outbound provider with sample values.</figcaption></figure>
@@ -399,7 +399,7 @@
 
 &lt;/outboundPolicies&gt;</pre>
 <h4>Levels and precedence</h4>
-<p>Four levels can define the same attributes: <code>defaults</code> (all attributes required), <code>profiles/item</code>, <code>projects/item</code> (matched on the OSB project of the business service) and <code>endpoints/item</code> (matched on the business service name). A project or endpoint may reference one profile; if the endpoint declares a profile, the profile of the project is ignored. The profile sits right after the level that declares it.</p>
+<p>Four levels can define the same attributes: <code>defaults</code> (all attributes required), <code>profiles/item</code>, <code>projects/item</code> (matched on the OSB project of the business service) and <code>endpoints/item</code> (matched on the local name of the business service or on its full path <code>project/folders/name</code>; when both forms exist the full path prevails, so business services with the same name in different projects can be told apart). The matched item is logged at DEBUG as <i>Endpoint Policy</i>. A project or endpoint may reference one profile; if the endpoint declares a profile, the profile of the project is ignored. The profile sits right after the level that declares it.</p>
 <figure><img src="images/outbound-policy-levels.svg" alt="Policy levels"><figcaption>Figure 12 – Order of the levels.</figcaption></figure>
 <h4>Attributes</h4>
 <table class="wide">
@@ -408,11 +408,11 @@
 <tr><td><code>identity</code></td><td>Logical name of the ESB identity (templates allowed, e.g. <code>esb-to-${osb.project}</code>). Its ResourceMappings value is the client_id.</td></tr>
 <tr><td><code>method</code></td><td><code>secret</code> (client secret from ClientSecrets) or <code>assertion</code> (client assertion signed with a key from ClientKeys).</td></tr>
 <tr><td><code>resource</code></td><td>Target resource (templates allowed). Translated through ResourceMappings when <code>resource_mapped="true"</code>; an empty value is passed as is.</td></tr>
-<tr><td><code>resource_mapped</code></td><td><code>true</code>/<code>false</code>.</td></tr>
+<tr><td><code>resource_mapped</code></td><td><code>true</code>/<code>false</code> (required in <code>defaults</code>; if no level defines it, <code>true</code> is assumed).</td></tr>
 <tr><td><code>scope</code></td><td>Scope for v2 token requests (templates allowed, resolved after <code>resource</code>, so <code>${resource}/.default</code> uses the mapped value).</td></tr>
 <tr><td><code>secret_request</code>, <code>assertion_request</code></td><td>Name of the request template (with <code>@method</code> secret / assertion) in OutboundTemplates.</td></tr>
 <tr><td><code>assertion_token</code></td><td>Name of the client-assertion token template.</td></tr>
-<tr><td><code>token_cache_ttl</code></td><td>0–3600 s an access token is reused (also bounded by its <code>exp</code>). 0 disables the cache.</td></tr>
+<tr><td><code>token_cache_ttl</code></td><td>0–3600 s an access token is reused (also bounded by its <code>exp</code>; a token without <code>exp</code> is never reused). 0 disables the cache.</td></tr>
 <tr><td><code>token_cache_index</code></td><td>Template of the cache key. Must contain everything that makes tokens different (URL, identity, resource, scope, method).</td></tr>
 <tr><td><code>customHeader</code> (attribute) / <code>&lt;customHeader name value/&gt;</code></td><td>Header added to the request. The inline form is <code>name:value</code>. Values support templates.</td></tr>
 <tr><td><code>secureHeader</code> (attribute) / <code>&lt;secureHeader name key/&gt;</code></td><td>Header whose value is the password of the remote user named <code>key</code> (templates allowed) in HeaderSecrets. A key such as <code>${osb.service.name}-${osb.operation}</code> selects a different value per service and operation (<a href="#out-secrets">§8.6</a>).</td></tr>
@@ -499,7 +499,7 @@
 <p><code>${osb.operation.source}</code> and <code>${osb.operation.message}</code> tell which rule applied.</p>
 
 <h3 id="out-cache">8.9 Access token cache</h3>
-<p>Tokens are cached in the realm instance under the resolved <code>token_cache_index</code>. An entry is discarded when <code>now ≥ exp</code> of the token or <code>now ≥ cached time + token_cache_ttl</code>. A TTL a few minutes shorter than the token lifetime (e.g. 3000 s for one-hour tokens) avoids sending tokens that expire in transit.</p>
+<p>Tokens are cached in the realm instance under the resolved <code>token_cache_index</code>. An entry is discarded when <code>now ≥ exp</code> of the token or <code>now ≥ cached time + token_cache_ttl</code>. A token without <code>exp</code> counts as already expired, so it is used once and never reused. A TTL a few minutes shorter than the token lifetime (e.g. 3000 s for one-hour tokens) avoids sending tokens that expire in transit.</p>
 
 <h3 id="out-faults">8.10 Faults returned by OSB</h3>
 <p>Errors are raised as <code>TransportException</code> with a short message; the detail is in the provider log. OSB turns it into fault <code>OSB-380000</code> with the message as reason. When the token endpoint answers with an error and a JSON body, the <code>error_description</code> is appended to the message, e.g.</p>
@@ -520,7 +520,7 @@
 <tr><td><code>${uuid}</code></td><td>Random UUID generated for the request.</td></tr>
 <tr><td><code>${thread}</code></td><td>Java thread id.</td></tr>
 <tr><td><code>${context}</code></td><td><code>inbound</code> or <code>outbound</code>.</td></tr>
-<tr><td><code>${instance}</code></td><td>Instance id: <code>CIA:nnn</code> / <code>COA:nnn</code> (hex counter).</td></tr>
+<tr><td><code>${instance}</code></td><td>Instance id: <code>CIA:nnn</code> / <code>COA:nnn</code> (hex counter, at least three digits, unique within the server; atomic, so instances created in parallel never share an id).</td></tr>
 <tr><td><code>${providername}</code></td><td>Name of the provider in the realm.</td></tr>
 <tr><td><code>${request.counter}</code></td><td>Request counter of the instance (7 digits).</td></tr>
 <tr><td><code>${request.datetime}</code>, <code>${request.timestamp}</code></td><td>Start of the request (<code>yyyy-MM-dd HH:mm:ss.SSS</code>, epoch ms).</td></tr>
@@ -634,9 +634,9 @@ ${current.epoch}+300</pre>
 <!-- ================================================================================================ -->
 <h2 id="threading">12. Threading, state and caches</h2>
 <ul>
-  <li><b>Per-request state</b> (logger, config snapshot of the MBean, context) is kept in <code>ThreadLocal</code>s created at the start of each call and cleared at the end (<code>cleanThread</code>). WebLogic calls identity asserters and outbound authentication in parallel; <code>THREADING_MODE=SERIAL</code> serializes the calls of one instance.</li>
+  <li><b>Per-request state</b> (logger, config snapshot of the MBean, context) is kept in <code>ThreadLocal</code>s created at the start of each call and cleared at the end by <code>cleanThread</code>, called in a <code>finally</code> block so that the request objects, tokens and secrets never stay on the pooled thread, also after an error or an exception. WebLogic calls identity asserters and outbound authentication in parallel; <code>THREADING_MODE=SERIAL</code> serializes the calls of one instance.</li>
   <li><b>Thread names</b>: <code>setThreadName()</code> renames the executing thread to the 7-digit request counter of the instance, which appears in the log lines.</li>
-  <li><b>Instances</b>: WebLogic creates one inbound instance per realm provider. For outbound, WebLogic creates the realm instance (with MBean and caches) and OSB creates one instance per business service; the first call of each borrows the provider context of the realm instance from a static registry (logged as <i>Provider context init</i>). A second outbound provider in the realm stops the server at boot (<code>System.exit</code>).</li>
+  <li><b>Instances</b>: WebLogic creates one inbound instance per realm provider. For outbound, WebLogic creates the realm instance (with MBean and caches) and OSB creates one instance per business service; the first call of each borrows the provider context of the realm instance from a static registry (logged as <i>Provider context init</i>). A second outbound provider in the realm makes the server fail at boot: the provider throws <code>ProviderInitializationException</code>, the realm fails to load (<code>BEA-090870</code>) and the server goes to <code>FAILED</code> and shuts itself down (<code>BEA-000383</code>). <code>shutdown()</code> removes the realm instance from the registry, so a new <code>initialize()</code> in the same JVM is not taken for a second provider.</li>
   <li><b>Caches</b> (all in memory, per JVM): parsed OSB resources by change time (<code>OSBUtils</code>), positive validation outcomes (<code>ObjValidationCache</code>), JWKS keys (<code>JWTCache.keysCache</code>, by <code>jwksURL#kid</code>), access tokens (<code>JWTCache.tokensCache</code>, by cache index). Expired entries are removed when the same key is looked up again.</li>
 </ul>
 
@@ -662,7 +662,7 @@ ${current.epoch}+300</pre>
 <h4>CustomAuthenticator (abstract)</h4>
 <table class="wide">
 <tr><th>Member</th><th>Line</th><th>Purpose</th></tr>
-<tr><td><code>init(ProviderMBean)</code></td><td>185</td><td>Builds <code>ProviderContext</code>: names, package title, MBean, BeanInfo descriptors, realm/domain/server, embedded LDAP authenticator, script engine, JWT cache and JWT provider implementation (Nimbus or shaded Nimbus by Java version), Kerberos configuration; logs the INITIALIZE block. Any failure calls <code>System.exit(0)</code>.</td></tr>
+<tr><td><code>init(ProviderMBean)</code></td><td>185</td><td>Builds <code>ProviderContext</code>: names, package title, MBean, BeanInfo descriptors, realm/domain/server, embedded LDAP authenticator, script engine, JWT cache and JWT provider implementation (Nimbus or shaded Nimbus by Java version), Kerberos configuration; logs the INITIALIZE block. Any failure is logged and thrown as <code>ProviderInitializationException</code> with the provider name, so the realm and the server fail at boot (§14.3).</td></tr>
 <tr><td><code>done()</code></td><td>321</td><td>Logs SHUTDOWN.</td></tr>
 <tr><td><code>getPackageTitle()</code></td><td>344</td><td>Package identification read from the jar manifest (§13.9); <code>unknown</code> on failure.</td></tr>
 <tr><td><code>prepareToken([String])</code></td><td>380</td><td>New JWT provider instance, optionally parsed from a compact token.</td></tr>
@@ -675,48 +675,50 @@ ${current.epoch}+300</pre>
 <tr><td><code>linearizeXml</code>, <code>evaluateScript</code></td><td>761, 779</td><td>Logging helper; template resolution + script evaluation with result class check.</td></tr>
 <tr><td><code>fetchResource(...)</code></td><td>800</td><td>HTTP call through <code>HttpUtils.fetch</code> with the proxy, TLS and timeout settings of the config.</td></tr>
 <tr><td><code>createLogger/createConfig/createContext</code></td><td>857, 874, 894</td><td>Thread-local state; <code>createContext</code> defines the common template variables.</td></tr>
-<tr><td><code>setThreadName()</code>, <code>cleanThread()</code></td><td>993, 1000</td><td>Thread name counter; removal of the thread-locals.</td></tr>
+<tr><td><code>setThreadName()</code>, <code>cleanThread()</code></td><td>993, 1000</td><td>Thread name counter; removal of the thread-locals (null-safe, since it runs in <code>finally</code> also when the request failed before creating them).</td></tr>
 </table>
 <h4>CustomInboundAuthenticator</h4>
 <table class="wide">
 <tr><th>Member</th><th>Line</th><th>Purpose</th></tr>
 <tr><td><code>TokenTypes</code></td><td>71</td><td>Token type constants (<code>CIA.*</code>).</td></tr>
 <tr><td><code>initialize(...)</code></td><td>120</td><td><code>init</code> + registration by provider name.</td></tr>
-<tr><td><code>assertIdentity(String,Object,ContextHandler)</code></td><td>164</td><td>Entry point; creates logger/config/context, runs serial or parallel implementation, cleans the thread.</td></tr>
-<tr><td><code>assertIdentityAsynchImpl</code></td><td>199</td><td>Config log and checks, token type and scheme detection, dispatch to Basic/JWT, headers, INFO line, callback.</td></tr>
-<tr><td><code>manageBasicAuthInbound</code></td><td>384</td><td>Basic credentials against the embedded LDAP.</td></tr>
-<tr><td><code>manageJwtAuthInbound</code></td><td>425</td><td>JWT flow (§7.4).</td></tr>
-<tr><td><code>prepareKey(String)</code></td><td>690</td><td>Key cache and JWKS download.</td></tr>
-<tr><td><code>createConfig()</code>, <code>createContext(ContextHandler)</code></td><td>764, 805</td><td>MBean snapshot; HTTP variables from the servlet request found in the WebLogic context handler.</td></tr>
+<tr><td><code>shutdown()</code></td><td>129</td><td><code>done</code> and removal of the instance from the registry.</td></tr>
+<tr><td><code>assertIdentity(String,Object,ContextHandler)</code></td><td>164</td><td>Entry point; creates logger/config/context, runs serial or parallel implementation, cleans the thread in <code>finally</code>.</td></tr>
+<tr><td><code>assertIdentityAsynchImpl</code></td><td>204</td><td>Config log and checks, token type and scheme detection, dispatch to Basic/JWT, headers, INFO line, callback.</td></tr>
+<tr><td><code>manageBasicAuthInbound</code></td><td>389</td><td>Basic credentials against the embedded LDAP.</td></tr>
+<tr><td><code>manageJwtAuthInbound</code></td><td>430</td><td>JWT flow (§7.4).</td></tr>
+<tr><td><code>prepareKey(String)</code></td><td>695</td><td>Key cache and JWKS download.</td></tr>
+<tr><td><code>createConfig()</code>, <code>createContext(ContextHandler)</code></td><td>769, 810</td><td>MBean snapshot; HTTP variables from the servlet request found in the WebLogic context handler.</td></tr>
 </table>
 <h4>CustomOutboundAuthenticator</h4>
 <table class="wide">
 <tr><th>Member</th><th>Line</th><th>Purpose</th></tr>
-<tr><td><code>initialize(...)</code></td><td>119</td><td><code>init</code>, single-instance check, registration.</td></tr>
-<tr><td><code>doOutboundAuthentication(...)</code></td><td>173</td><td>Entry point called by the OSB HTTP transport.</td></tr>
-<tr><td><code>doOutboundAuthenticationAsynchImpl</code></td><td>234</td><td>Config log and checks, policies, authentication, headers, INFO line.</td></tr>
-<tr><td><code>manageJwtAuthOutbound</code></td><td>352</td><td>Authentication, authorization, access token, Authorization header.</td></tr>
-<tr><td><code>manageCustomHeaders()</code></td><td>389</td><td>Merges MBean and policy headers, translates secure headers.</td></tr>
-<tr><td><code>preparePolicies()</code></td><td>457</td><td>Levels, attributes, headers, templates, mappings.</td></tr>
-<tr><td><code>prepareClaims</code>, <code>prepareRequest</code></td><td>646, 666</td><td>Evaluate token and request templates.</td></tr>
-<tr><td><code>prepareAuthentication()</code></td><td>695</td><td>client_id, client secret or client assertion.</td></tr>
-<tr><td><code>prepareAuthorization()</code></td><td>766</td><td>Resource and scope.</td></tr>
-<tr><td><code>prepareAccessToken()</code></td><td>815</td><td>Token cache and token request.</td></tr>
-<tr><td><code>detectOperation(...)</code></td><td>932</td><td>§8.8.</td></tr>
-<tr><td><code>createConfig()</code>, <code>createContext(...)</code></td><td>1078, 1119</td><td>MBean snapshot; outbound variables.</td></tr>
+<tr><td><code>initialize(...)</code></td><td>119</td><td><code>init</code>, single-instance check (<code>ProviderInitializationException</code> naming both providers), registration.</td></tr>
+<tr><td><code>shutdown()</code></td><td>138</td><td><code>done</code> and removal of the realm instance from the registry.</td></tr>
+<tr><td><code>doOutboundAuthentication(...)</code></td><td>173</td><td>Entry point called by the OSB HTTP transport; registry and service account checks, context, serial or parallel implementation, thread cleaned in <code>finally</code>.</td></tr>
+<tr><td><code>doOutboundAuthenticationAsynchImpl</code></td><td>239</td><td>Config log and checks, policies, authentication, headers, INFO line.</td></tr>
+<tr><td><code>manageJwtAuthOutbound</code></td><td>357</td><td>Authentication, authorization, access token, Authorization header.</td></tr>
+<tr><td><code>manageCustomHeaders()</code></td><td>394</td><td>Merges MBean and policy headers, translates secure headers.</td></tr>
+<tr><td><code>preparePolicies()</code></td><td>462</td><td>Levels, attributes, headers, templates, mappings.</td></tr>
+<tr><td><code>prepareClaims</code>, <code>prepareRequest</code></td><td>651, 671</td><td>Evaluate token and request templates.</td></tr>
+<tr><td><code>prepareAuthentication()</code></td><td>700</td><td>client_id, client secret or client assertion.</td></tr>
+<tr><td><code>prepareAuthorization()</code></td><td>771</td><td>Resource and scope.</td></tr>
+<tr><td><code>prepareAccessToken()</code></td><td>820</td><td>Token cache and token request.</td></tr>
+<tr><td><code>detectOperation(...)</code></td><td>937</td><td>§8.8.</td></tr>
+<tr><td><code>createConfig()</code>, <code>createContext(...)</code></td><td>1083, 1124</td><td>MBean snapshot; outbound variables.</td></tr>
 </table>
 
 <h3 id="dev-commons">13.3 osb-commons reference</h3>
 <table class="wide">
 <tr><th>Class</th><th>Main members</th><th>Notes</th></tr>
-<tr><td><code>org.falpi.SuperMap</code>, <code>RegexMap</code></td><td><code>getString</code>, <code>getInteger</code>, <code>getStringArray</code>, <code>getProperties</code>, <code>putRegex</code>, <code>getRegex</code></td><td>LinkedHashMap with typed getters and a side map whose keys are regular expressions (used for parametric template variables). <code>getString(key, default)</code> currently returns "" for missing keys.</td></tr>
+<tr><td><code>org.falpi.SuperMap</code>, <code>RegexMap</code></td><td><code>getString</code>, <code>getInteger</code>, <code>getStringArray</code>, <code>getProperties</code>, <code>putRegex</code>, <code>getRegex</code></td><td>LinkedHashMap with typed getters and a side map whose keys are regular expressions (used for parametric template variables). <code>getString(key)</code> returns "" for missing keys, <code>getString(key, default)</code> the given default.</td></tr>
 <tr><td><code>StringUtils</code></td><td><code>replaceTemplates</code>, <code>TemplateFunction</code>, <code>join</code>, <code>padLeft/Right</code>, <code>repeat</code>, <code>toString</code>, <code>escapeJavaScript</code></td><td>Template engine (§9); <code>escapeJavaScript</code> (same rules as commons-lang 2 <code>StringEscapeUtils.escapeJavaScript</code>) quotes the <code>String</code> values of the outbound templates without depending on the commons-lang version shipped with WebLogic (2.x on 12.2.1, 3.x on 14.1.2).</td></tr>
 <tr><td><code>logging.LogManager</code>, <code>LogLevel</code></td><td><code>logMessage</code>, <code>logProperty</code>, <code>formatProperties</code>, <code>checkLogLevel</code>, <code>setLogLevel</code>, <code>setLogLines</code>, <code>setPadLength</code></td><td>Format of §11; output on <code>System.out</code>.</td></tr>
-<tr><td><code>HttpUtils</code></td><td><code>fetch</code>, <code>HttpStatusException</code>, <code>buildClient</code>, <code>buildRequest</code>, <code>getHeaders</code></td><td>Apache HttpClient 4.5; host and proxy authentication ANONYMOUS/BASIC/NTLM/KERBEROS; non-200 status → <code>HttpStatusException</code> with status, content type and body (one line, max 2048 chars); response and client closed in <code>finally</code>.</td></tr>
+<tr><td><code>HttpUtils</code></td><td><code>fetch</code>, <code>HttpStatusException</code>, <code>buildClient</code>, <code>buildRequest</code>, <code>getHeaders</code></td><td>Apache HttpClient 4.5; host and proxy authentication ANONYMOUS/BASIC/NTLM/KERBEROS (unknown modes raise an exception); Kerberos login contexts always released in <code>finally</code>; non-2xx status → <code>HttpStatusException</code> with status, content type and body (one line, max 2048 chars); response and client closed in <code>finally</code>.</td></tr>
 <tr><td><code>OSBUtils</code></td><td><code>getResource</code>, <code>getResourceCached</code>, <code>getResourceMetadata</code>, <code>getResourceRef</code>, <code>buildRequestHeaders</code>, <code>buildContextVariables</code>, <code>MessageContext</code> helpers</td><td>Service accounts are exported in clear through the OSB config API.</td></tr>
 <tr><td><code>WLSUtils</code></td><td><code>getDomainName</code>, <code>getManagedName</code>, <code>getAuthenticator</code>, <code>encryptionHelper</code>, <code>decryptionHelper</code>, <code>addRequestHeader</code></td><td>Kernel identity, embedded LDAP authenticator, domain-key encryption (<code>encrypted:&lt;base64&gt;</code>).</td></tr>
 <tr><td><code>JavaUtils</code></td><td><code>getScriptEngine</code>, <code>getField</code>, <code>getJavaVersion</code>, <code>getStackTrace</code>, <code>getDateTime</code>, <code>getTimestamp</code></td><td>Reflection on private fields of OSB/WebLogic classes.</td></tr>
-<tr><td><code>XMLUtils</code></td><td><code>validate</code>, <code>getTextValue</code>, <code>getAttributeValue</code>, <code>copy</code></td><td>XmlBeans helpers; <code>getTextValue</code> returns "" when nothing matches.</td></tr>
+<tr><td><code>XMLUtils</code></td><td><code>validate</code>, <code>getTextValue</code>, <code>getAttributeValue</code>, <code>copy</code></td><td>XmlBeans helpers; <code>getTextValue</code> returns "" when nothing matches; every cursor is disposed in a <code>finally</code> block, also when the XPath is invalid or the copy fails.</td></tr>
 <tr><td><code>CryptoUtils</code>, <code>SecurityUtils</code></td><td><code>loadPrivateKey</code>; <code>configKerberos</code>, <code>loginKerberos</code>, Base64</td><td>BouncyCastle PEM parsing; Kerberos login module.</td></tr>
 <tr><td><code>jwt.JWTProvider</code>, <code>JWTProviderNimbus[Shaded]Impl</code>, <code>JWTCache</code></td><td><code>parse</code>, <code>build</code>, <code>verify</code>, <code>serialize</code>, <code>getHeader</code>, <code>getPayload</code>, <code>getExpiration</code>; <code>validKey</code>, <code>putKey</code>, <code>getToken</code>, <code>putToken</code></td><td>Abstraction over Nimbus JOSE+JWT; the shaded implementation (<code>org.nimbusds.*</code>) avoids the incompatible Nimbus shipped with WebLogic 12.2.1.</td></tr>
 <tr><td><code>DumpUtils</code></td><td><code>dumpObjectToXml</code></td><td>Diagnostics only: dumps every field of an object graph, secrets included.</td></tr>
@@ -760,7 +762,7 @@ ${current.epoch}+300</pre>
 <h3 id="dev-extend">13.7 Extending the providers</h3>
 <ul>
   <li><b>New MBean attribute</b>: add <code>&lt;MBeanAttribute&gt;</code> to the MDF (position = console order), a constant and a <code>Config.put</code> in <code>createConfig()</code>, log it in the CONFIGURATION block, validate it with <code>validateParameter</code> if mandatory. Rebuild with MBeanMaker (the interface getter is generated).</li>
-  <li><b>New outbound policy attribute</b>: add it to <code>abstractType</code> (optional) and <code>defaultType</code> (required) of <code>OutboundPolicies.xsd</code> and to the list in <code>preparePolicies()</code> (line 533): it becomes a context variable automatically.</li>
+  <li><b>New outbound policy attribute</b>: add it to <code>abstractType</code> (optional) and <code>defaultType</code> (required) of <code>OutboundPolicies.xsd</code> and to the list in <code>preparePolicies()</code> (line 538): it becomes a context variable automatically.</li>
   <li><b>New template variable</b>: <code>Context.put(name, String)</code> for static values, <code>Context.put(name, TemplateFunction)</code> for lazy values, <code>Context.putRegex(regex, TemplateFunction)</code> for parametric names. Names cannot contain digits.</li>
   <li><b>New identity provider</b>: no code change; add provider, issuers and identities (inbound), request templates and mappings (outbound).</li>
 </ul>
@@ -836,6 +838,19 @@ Outbound-Version: 1.0.0</pre>
 <tr><td>Secure header error ('name')</td><td>HeaderSecrets not readable or key not found.</td></tr>
 </table>
 
+<h3>14.3 Initialization (ProviderInitializationException → server FAILED)</h3>
+<p>Errors raised by <code>init()</code> and by the outbound <code>initialize()</code> are logged by the provider at ERROR level and thrown as <code>weblogic.security.spi.ProviderInitializationException</code> (unchecked, so the SSPI signature does not change). WebLogic reports them as <code>BEA-090870 The realm "&lt;realm&gt;" failed to be loaded</code> followed by <code>BEA-000362 Server failed</code>, <code>FAILED</code> state and <code>BEA-000383 A critical service failed. The server will shut itself down</code>. The message carries the provider name in brackets.</p>
+<table class="wide">
+<tr><th>Message</th><th>Cause</th></tr>
+<tr><td><code>Provider config error</code></td><td>The provider type attribute cannot be read from the MBean.</td></tr>
+<tr><td><code>MBeanInfo load error</code></td><td>The BeanInfo of the MBean cannot be loaded or its descriptors are incomplete (see the attribute ordering in §13.4).</td></tr>
+<tr><td><code>WebLogic context error</code></td><td>Realm, domain or server name, or the embedded LDAP authenticator, not available.</td></tr>
+<tr><td><code>Script engine error</code></td><td>No JavaScript engine (Nashorn on JDK 8, bundled Rhino on JDK 17).</td></tr>
+<tr><td><code>Token provider error</code></td><td>The JWT implementation for the Java version cannot be created (Nimbus or shaded Nimbus missing).</td></tr>
+<tr><td><code>Kerberos config error</code></td><td><code>KERBEROS_CONFIGURATION</code> cannot be written to the temporary file.</td></tr>
+<tr><td><code>Multiple outbound providers not allowed: &lt;name&gt; (already registered: &lt;names&gt;)</code></td><td>A second <code>CustomOutboundAuthenticator</code> in the realm (§12); delete one of the two.</td></tr>
+</table>
+
 <!-- ================================================================================================ -->
 <h2 id="trouble">15. Troubleshooting</h2>
 <table class="wide">
@@ -845,12 +860,12 @@ Outbound-Version: 1.0.0</pre>
 <tr><td>Realm fails at boot with <code>NoSuchFieldError</code>, <code>NoSuchMethodError</code> or <code>NoClassDefFoundError</code> on <code>org.falpi.*</code> or library classes</td><td>Two copies of the same classes in <code>mbeantypes</code> (two osb-commons versions, or a merged provider jar plus a separate osb-commons). All the jars of the folder share one class loader whose order depends on the file names: keep a single copy of every class (§3.1).</td></tr>
 <tr><td><code>Signed JWT rejected: Invalid signature</code> with Entra ID tokens for Microsoft Graph</td><td>Graph access tokens carry a <code>nonce</code> header and cannot be verified by third parties. Request tokens for your own app registration (Application ID URI or client id as resource/scope).</td></tr>
 <tr><td><code>JWT missing required claims: [nbf]</code></td><td>The token has no <code>nbf</code> (e.g. some Keycloak clients); verification currently requires it.</td></tr>
-<tr><td>Server stops at boot without error in the server log</td><td>An initialization error or a second outbound provider: see the provider lines in the <code>.out</code> file.</td></tr>
+<tr><td>Server goes to <code>FAILED</code> at boot with <code>BEA-090870</code> and <code>ProviderInitializationException</code></td><td>An initialization error or a second outbound provider (§14.3): the message names the error and the provider, the provider lines in the <code>.out</code> file give the details. Correct the configuration with the servers stopped (e.g. in <code>config.xml</code>), since the Admin Server fails too.</td></tr>
 <tr><td>Validation errors logged at every request</td><td>The XML does not match its XSD: fix and redeploy; check that the XSD deployed on OSB is the expected one.</td></tr>
 <tr><td>JDeveloper does not report duplicates that the runtime rejects</td><td>Refresh the schema in JDeveloper after changing the XSD outside the IDE.</td></tr>
 <tr><td>JDeveloper <i>Refresh Application</i> fails with <code>Invalid padding</code></td><td>A <code>.sa</code> file contains passwords encrypted for another domain (<code>{AES256}</code>); replace them.</td></tr>
 <tr><td>Passwords lost after renaming remote users</td><td>The JDeveloper service account editor resets them; rename in the raw file.</td></tr>
-<tr><td>Outbound call always gets a new token</td><td><code>token_cache_ttl="0"</code> disables the cache.</td></tr>
+<tr><td>Outbound call always gets a new token</td><td><code>token_cache_ttl="0"</code> disables the cache; access tokens without <code>exp</code> claim are never reused.</td></tr>
 <tr><td>Secure header key not found</td><td>Check <code>${osb.operation}</code> in the DEBUG log (operation source) and the remote user names in HeaderSecrets.</td></tr>
 </table>
 <p class="small">See also the companion document <a href="CustomAuthenticators-Issues.html">CustomAuthenticators-Issues.html</a> for the open weaknesses and improvement points.</p>

@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.net.HttpURLConnection;
@@ -28,6 +29,7 @@ import weblogic.security.spi.IdentityAsserterV2;
 import weblogic.security.spi.PrincipalValidator;
 import weblogic.security.spi.SecurityServices;
 import weblogic.security.spi.AuthenticationProviderV2;
+import weblogic.security.spi.ProviderInitializationException;
 import weblogic.wsee.wsdl.WsdlBinding;
 import weblogic.wsee.wsdl.WsdlBindingOperation;
 import weblogic.wsee.wsdl.soap11.SoapBinding;
@@ -53,7 +55,6 @@ import com.bea.wli.sb.transports.TransportSender;
 import com.bea.wli.sb.transports.http.OutboundAuthentication;
 import com.bea.wli.sb.transports.http.HttpUrlConnectionFactory;
 import com.bea.wli.sb.services.dispatcher.security.SecurityContext;
-
 
 import org.apache.xmlbeans.XmlObject;
 
@@ -97,8 +98,8 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
    // Variabili globali statiche di classe
    // ==================================================================================================================================
 
-   // Contatore istanze del provider
-   protected static byte IntInstanceCount = 0; 
+   // Contatore istanze del provider (atomico: le istanze possono essere create in parallelo da WebLogic e da OSB)
+   protected static final AtomicInteger ObjInstanceCount = new AtomicInteger(0);
    
    // Registro delle istanze del provider di outbound
    protected static ProviderRegistry ObjOutboundRegistry = new ProviderRegistry();
@@ -108,7 +109,7 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
    // ##################################################################################################################################
    public CustomOutboundAuthenticator() {
       super();      
-      StrInstanceID = "COA:"+String.format("%03X",IntInstanceCount++);      
+      StrInstanceID = "COA:"+String.format("%03X",ObjInstanceCount.getAndIncrement());
    }
    
    // ##################################################################################################################################
@@ -126,11 +127,10 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
       
       // Se esiste gia' un provider di outbound registrato genera eccezione (e' ammessa una sola istanza)
       if (!ObjOutboundRegistry.isEmpty()) {         
-         String StrError = "Multiple outbound providers not allowed";
+         String StrError = "Multiple outbound providers not allowed: "+ObjProviderContext.providerName+" (already registered: "+String.join(", ",ObjOutboundRegistry.keySet())+")";
          Logger.logMessage(LogLevel.ERROR,StrError);
-         System.exit(0);
+         throw new ProviderInitializationException(StrError);
       }
-            
       // Salva l'istanza del provider di outbound nel registry    
       ObjOutboundRegistry.put(ObjProviderContext.providerName,this);                  
    }
@@ -138,6 +138,7 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
    @Override
    public void shutdown() {
       done();
+      ObjOutboundRegistry.remove(ObjProviderContext.providerName,this); // libera il registry: consente un nuovo initialize nella stessa JVM
    }
 
    @Override
@@ -175,50 +176,55 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
       
       // Inizializza nome del thread
       setThreadName();
-      
-      // Crea logger 
-      LogManager Logger = createLogger();
 
-      // Acquisisce request connection
-      HttpURLConnection ObjConnection = ObjConnectionFactory.newConnection();
+      try {
 
-      // Se non è registrato il provider di outbound genera eccezione
-      if (ObjOutboundRegistry.isEmpty()) throw new TransportException("Custom Outbound provider not configured in security realm");         
-      
-      // Se il business service è associato ad un service account genera eccezione
-      if (ObjServiceAccountRef!=null) throw new TransportException("Service Account not allowed ("+ObjEndpoint.getServiceRef().getFullName()+")");       
-          
-      // ==================================================================================================================================
-      // Se necessario inizializza contesto dell'istanza per accesso alle policy di sicurezza globali
-      // ==================================================================================================================================   
+         // Crea logger
+         LogManager Logger = createLogger();
 
-      // Se non c'è ancora nessun provider di outbound agganciato all'istanza dell'autenticator estrae il primo registrato
-      if (ObjProviderContext==null) {
-         ObjProviderContext = ObjOutboundRegistry.values().iterator().next().ObjProviderContext;
-         Logger.logMessage(LogLevel.WARN,"Provider context init ("+ObjProviderContext.providerName+")");
+         // Acquisisce request connection
+         HttpURLConnection ObjConnection = ObjConnectionFactory.newConnection();
+
+         // Se non è registrato il provider di outbound genera eccezione
+         if (ObjOutboundRegistry.isEmpty()) throw new TransportException("Custom Outbound provider not configured in security realm");
+
+         // Se il business service è associato ad un service account genera eccezione
+         if (ObjServiceAccountRef!=null) throw new TransportException("Service Account not allowed ("+ObjEndpoint.getServiceRef().getFullName()+")");
+
+         // ==================================================================================================================================
+         // Se necessario inizializza contesto dell'istanza per accesso alle policy di sicurezza globali
+         // ==================================================================================================================================
+
+         // Se non c'è ancora nessun provider di outbound agganciato all'istanza dell'autenticator estrae il primo registrato
+         if (ObjProviderContext==null) {
+            ObjProviderContext = ObjOutboundRegistry.values().iterator().next().ObjProviderContext;
+            Logger.logMessage(LogLevel.WARN,"Provider context init ("+ObjProviderContext.providerName+")");
+         }
+
+         // ==================================================================================================================================
+         // Inizializza context
+         // ==================================================================================================================================
+
+         // Crea config & context
+         RuntimeConfig Config = createConfig();
+         RuntimeContext Context = createContext(ObjEndpoint,ObjSender,ObjConnection);
+
+         // ==================================================================================================================================
+         // Esegue in modo sincrono o asincrono in base a configurazione
+         // ==================================================================================================================================
+         if (Config.getString(THREADING_MODE).equals("SERIAL")) {
+            doOutboundAuthenticationSynchImpl();
+         } else {
+            doOutboundAuthenticationAsynchImpl();
+         }
+
+      } finally {
+
+         // ==================================================================================================================================
+         // Ripulisce esplicitamente le variabili di thread, anche in caso di errore
+         // ==================================================================================================================================
+         cleanThread();
       }
-                         
-      // ==================================================================================================================================
-      // Inizializza context
-      // ==================================================================================================================================   
-                         
-      // Crea config & context
-      RuntimeConfig Config = createConfig();
-      RuntimeContext Context = createContext(ObjEndpoint,ObjSender,ObjConnection);
-
-      // ==================================================================================================================================      
-      // Esegue in modo sincrono o asincrono in base a configurazione
-      // ==================================================================================================================================
-      if (Config.getString(THREADING_MODE).equals("SERIAL")) {
-         doOutboundAuthenticationSynchImpl();
-      } else {      
-         doOutboundAuthenticationAsynchImpl();
-      }
-      
-      // ==================================================================================================================================      
-      // Ripulisce esplicitamente le variabili di thread
-      // ==================================================================================================================================      
-      cleanThread();
    }
 
    // ==================================================================================================================================
@@ -482,8 +488,16 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
          
          // Estrapola le eventuali policy a livello di endpoint
          TransportEndPoint ObjEndpoint = (TransportEndPoint) Context.get("osb.endpoint");
-         XmlObject[] ArrEndpointPolicies = ObjGlobalPolicies.selectPath("/outboundPolicies/endpoints/item[@name='"+ObjEndpoint.getServiceRef().getLocalName()+"']");         
-         if (ArrEndpointPolicies.length==1) ObjEndpointPolicies = ArrEndpointPolicies[0];
+         String StrLocalName = ObjEndpoint.getServiceRef().getLocalName();
+         String StrFullName = ObjEndpoint.getServiceRef().getFullName();
+         XmlObject[] ArrEndpointPolicies = ObjGlobalPolicies.selectPath("/outboundPolicies/endpoints/item[@name = ('"+StrLocalName+"','"+StrFullName+"')]");
+         
+         // Se sono presenti sia la policy per nome locale sia quella per percorso completo prevale quest'ultima, a prescindere dall'ordine nel file
+         for (XmlObject ObjItem : ArrEndpointPolicies) {
+            ObjEndpointPolicies = ObjItem;
+            if (StrFullName.equals(XMLUtils.getAttributeValue(ObjItem,"name",null))) break;
+         }
+         if (ObjEndpointPolicies!=null) Logger.logProperty(LogLevel.DEBUG,"Endpoint Policy",XMLUtils.getAttributeValue(ObjEndpointPolicies,"name",null));
          
          // Estrapola le eventuali policy a livello di progetto
          XmlObject[] ArrProjectPolicies = ObjGlobalPolicies.selectPath("/outboundPolicies/projects/item[@name='"+ObjEndpoint.getServiceRef().getProjectName()+"']");         

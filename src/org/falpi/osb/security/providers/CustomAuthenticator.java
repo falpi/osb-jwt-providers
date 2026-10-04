@@ -38,13 +38,13 @@ import javax.servlet.http.HttpServletResponse;
 
 import weblogic.management.security.ProviderMBean;
 import weblogic.security.spi.IdentityAssertionException;
+import weblogic.security.spi.ProviderInitializationException;
 
 import com.bea.wli.sb.services.ServiceInfo;
 
 import com.bea.xbean.xb.xsdschema.SchemaDocument;
 
 import java.util.ArrayList;
-
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.xmlbeans.XmlCursor;
@@ -85,6 +85,9 @@ public abstract class CustomAuthenticator {
    public static final String DEBUGGING_ASSERTION    = "DEBUGGING_ASSERTION";
    public static final String DEBUGGING_PROPERTIES   = "DEBUGGING_PROPERTIES";
    public static final String KERBEROS_CONFIGURATION = "KERBEROS_CONFIGURATION";
+
+   // Timeout di default (secondi) usato al posto di valori non positivi, che per HttpClient significano attesa infinita
+   public static final int DEFAULT_REQUESTS_TIMEOUT  = 5;
 
    // ##################################################################################################################################
    // Sottoclassi 
@@ -214,7 +217,7 @@ public abstract class CustomAuthenticator {
       } catch (Exception ObjException) {
          String StrError = "Provider config error";
          Logger.logMessage(LogLevel.ERROR,StrError,ObjException);
-         System.exit(0);
+         throw new ProviderInitializationException(StrError+" ("+ObjProviderContext.providerName+")",ObjException);
       }
 
       // ----------------------------------------------------------------------------------------------------------------------------------
@@ -238,7 +241,7 @@ public abstract class CustomAuthenticator {
       } catch (Exception ObjException) {
          String StrError = "MBeanInfo load error";
          Logger.logMessage(LogLevel.ERROR,StrError,ObjException);
-         System.exit(0);
+         throw new ProviderInitializationException(StrError+" ("+ObjProviderContext.providerName+")",ObjException);
       }
 
       // ==================================================================================================================================
@@ -252,7 +255,7 @@ public abstract class CustomAuthenticator {
       } catch (Exception ObjException) {
          String StrError = "WebLogic context error";
          Logger.logMessage(LogLevel.ERROR,StrError,ObjException);
-         System.exit(0);
+         throw new ProviderInitializationException(StrError+" ("+ObjProviderContext.providerName+")",ObjException);
       }
 
       // ==================================================================================================================================
@@ -263,7 +266,7 @@ public abstract class CustomAuthenticator {
       } catch (Exception ObjException) {
          String StrError = "Script engine error";
          Logger.logMessage(LogLevel.ERROR,StrError,ObjException);
-         System.exit(0);
+         throw new ProviderInitializationException(StrError+" ("+ObjProviderContext.providerName+")",ObjException);
       }
 
       // ==================================================================================================================================
@@ -283,7 +286,7 @@ public abstract class CustomAuthenticator {
       } catch (Exception ObjException) {
          String StrError = "Token provider error";
          Logger.logMessage(LogLevel.ERROR,StrError,ObjException);
-         System.exit(0);
+         throw new ProviderInitializationException(StrError+" ("+ObjProviderContext.providerName+")",ObjException);
       } 
       
       // ==================================================================================================================================
@@ -291,11 +294,15 @@ public abstract class CustomAuthenticator {
       // ==================================================================================================================================
       try {
          String[] ArrKerberosConfig = (String[]) getProviderMBeanAttribute(KERBEROS_CONFIGURATION);
-         SecurityUtils.configKerberos(StringUtils.join(ArrKerberosConfig,System.lineSeparator()));
+         String StrKerberosConfig = (ArrKerberosConfig==null)?(""):(StringUtils.join(ArrKerberosConfig,System.lineSeparator()));
+         
+         // Configura kerberos solo se la configurazione e' valorizzata, per non alterare le impostazioni kerberos della JVM
+         if (!StrKerberosConfig.trim().isEmpty()) SecurityUtils.configKerberos(StrKerberosConfig);
+         
       } catch (Exception ObjException) {
          String StrError = "Kerberos config error";
          Logger.logMessage(LogLevel.ERROR,StrError,ObjException);
-         System.exit(0);
+         throw new ProviderInitializationException(StrError+" ("+ObjProviderContext.providerName+")",ObjException);
       }
 
       // ==================================================================================================================================
@@ -832,6 +839,12 @@ public abstract class CustomAuthenticator {
          }
       }
                             
+      // Prepara i timeout (secondi), sostituendo i valori non positivi con il default per evitare attese infinite
+      int IntConnectTimeout = Integer.parseInt(Config.getString(REQUESTS_CONN_TIMEOUT));
+      int IntReadTimeout = Integer.parseInt(Config.getString(REQUESTS_READ_TIMEOUT));
+      if (IntConnectTimeout<=0) IntConnectTimeout = DEFAULT_REQUESTS_TIMEOUT;
+      if (IntReadTimeout<=0) IntReadTimeout = DEFAULT_REQUESTS_TIMEOUT;
+      
       // Esegue fetch della risorsa
       return new String(HttpUtils.fetch(ObjHttpMethod,
                                         StrResourceURL,ObjRequestBody,
@@ -839,8 +852,8 @@ public abstract class CustomAuthenticator {
                                         StrHostAuthMode,StrHostUserName,StrHostPassword,  
                                         Config.getString(REQUESTS_PROXY_MODE),StrProxyUserName,StrProxyPassword,StrProxyHost,IntProxyPort, 
                                         Config.getString(REQUESTS_SSL_VERIFY).equals("ENABLE"), 
-                                        Integer.parseInt(Config.getString(REQUESTS_CONN_TIMEOUT)), 
-                                        Integer.parseInt(Config.getString(REQUESTS_READ_TIMEOUT)), 
+                                        IntConnectTimeout,
+                                        IntReadTimeout,
                                         Logger));
    }
    
@@ -995,13 +1008,16 @@ public abstract class CustomAuthenticator {
    }   
    
    // ==================================================================================================================================
-   // Pulisce il thread context
+   // Pulisce il thread context (richiamato in finally: config e context possono mancare se la richiesta e' fallita prima di crearli)
    // ==================================================================================================================================
-   protected synchronized void cleanThread() {
-      
-      ObjThreadConfig.get().clear();
-      ObjThreadContext.get().clear(); 
-   
+   protected void cleanThread() {
+
+      RuntimeConfig Config = ObjThreadConfig.get();
+      if (Config!=null) Config.clear();
+
+      RuntimeContext Context = ObjThreadContext.get();
+      if (Context!=null) Context.clear();
+
       ObjThreadLogger.remove();
       ObjThreadConfig.remove();
       ObjThreadContext.remove(); 

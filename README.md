@@ -188,8 +188,8 @@ Parameter                     | Description
 `LOGGING_INFO`                | Format of the logging line generated with the INFO level at the end of each request. Supports template variables.
 `THREADING_MODE`              | Multithreading strategy (PARALLEL or SERIAL, see below).
 `REQUESTS_SSL_VERIFY`         | SSL enforcement for the requests to the IDP (JWKS download, token requests). Use DISABLE only in non-production environments to test endpoints.
-`REQUESTS_CONN_TIMEOUT`       | Connection timeout of the requests to the IDP (Seconds).
-`REQUESTS_READ_TIMEOUT`       | Response timeout of the requests to the IDP (Seconds).
+`REQUESTS_CONN_TIMEOUT`       | Connection timeout of the requests to the IDP (Seconds, 5 to 30).
+`REQUESTS_READ_TIMEOUT`       | Response timeout of the requests to the IDP (Seconds, 5 to 30): maximum wait for data once connected, so that an IDP or proxy that stops answering cannot block the server thread.
 `REQUESTS_PROXY_MODE`         | Requests to the IDP require proxy mediation. The following choices are supported: DIRECT (no proxy), ANONYMOUS, BASIC, NTLM, KERBEROS (NEGOTIATE).
 `REQUESTS_PROXY_PATH`         | OSB resource path (\*) of the "Proxy Server" used to extract proxy host and credentials. Mandatory unless DIRECT.
 `JWT_POLICIES_PATH`           | OSB resource path (\*) of the XML policies of the provider.
@@ -197,7 +197,7 @@ Parameter                     | Description
 `CUSTOM_REQUEST_HEADERS`      | Allows you to inject one or more custom http request headers. Each line must follow the format \<header\>=\<value\>.
 `DEBUGGING_ASSERTION`         | May contain a javascript text that is used to filter log messages with TRACE or DEBUG level according to arbitrary criteria defined by the user. This can be useful to reduce log messages and analyze specific requests. If present, it must return a Boolean object.
 `DEBUGGING_PROPERTIES`        | Allows you to send one or more string expressions to the log file. They are printed as log messages with DEBUG level. Any template variables are resolved allowing you to analyze the runtime context.
-`KERBEROS_CONFIGURATION`      | Content of the krb5.conf file used when the proxy requires KERBEROS authentication. It is written to a temporary file at initialization.
+`KERBEROS_CONFIGURATION`      | Content of the krb5.conf file used when the proxy requires KERBEROS authentication. It is written to a temporary file at initialization and set as the Kerberos configuration of the server JVM; leave it empty when Kerberos is not used, so that the Kerberos settings of the server are not touched (the initialization log then shows <code>Kerberos Config: undefined</code>).
 
 ## Template Variables
 <p align="justify">All string configuration parameters, policies and templates support the use of substitution variables to create configurations that can dynamically adapt to the runtime state. Variable names are dot-separated segments of letters, "_" and "-" (digits are not allowed); a variable that does not exist raises an error. The following variables are available in both providers; the variables specific to each provider are listed in the respective documents.</p>
@@ -207,7 +207,7 @@ Variable                      | Replaced by
 `${uuid}`                     | Random UUID generated for the request.
 `${thread}`                   | Current thread id.
 `${context}`                  | "inbound" or "outbound".
-`${instance}`                 | Unique identifier of the instance. It is "CIA:nnn" or "COA:nnn" where nnn is a counter of instances created for the provider.
+`${instance}`                 | Unique identifier of the instance. It is "CIA:nnn" or "COA:nnn" where nnn is a hexadecimal counter (at least three digits) of the instances created for the provider, unique within the server.
 `${providername}`             | The user-assigned provider instance name (e.g. CustomOAuth2Inbound).
 `${request.counter}`          | Request counter for this provider instance on current managed server.
 `${request.datetime}`         | Request timestamp in the format yyyy-MM-dd HH:mm:ss.SSS
@@ -324,7 +324,7 @@ Let's see below the format of each token:
 Token              | Format
 ------------------ | ------------------------------------------------------------------------------------
 `<timestamp>`      | Timestamp with milliseconds resolution in the format 'yyyy-MM-dd HH:mm:ss.SSS'.
-`<module>`         | Identifies the provider instance that generated the message: 'CIA:nnn' for inbound and 'COA:nnn' for outbound, where 'nnn' is a counter incremented for each running instance.
+`<module>`         | Identifies the provider instance that generated the message: 'CIA:nnn' for inbound and 'COA:nnn' for outbound, where 'nnn' is a hexadecimal counter (at least three digits) incremented for each instance, unique within the server also for the outbound instances created by OSB for each Business Service.
 `<sequence>`       | Numeric sequence incremented at each request handled by the instance.
 `<level>`          | Log message severity level (TRACE, DEBUG, INFO, WARN, ERROR).
 `<message>`        | Message text.
@@ -355,7 +355,7 @@ Token              | Format
 <p align="justify">Please note that at DEBUG level the values of the headers added to requests are logged, and at TRACE level also the token requests and responses of the outbound provider, which contain client secrets, client assertions and access tokens. Do not keep these levels active in production, or restrict them to specific requests with DEBUGGING_ASSERTION.</p>
 
 ## Threading Mode
-<p align="justify">The provider code base was designed to be thread-safe because Identity Asserters and outbound authentication classes in WebLogic and OSB are called in parallel and this is their normal behavior. If multiple requests arrive at the same time the server allocates a different thread for each request. The state of each request is kept in thread-local objects, while the caches of signing keys and access tokens are shared.<br/><br/>
+<p align="justify">The provider code base was designed to be thread-safe because Identity Asserters and outbound authentication classes in WebLogic and OSB are called in parallel and this is their normal behavior. If multiple requests arrive at the same time the server allocates a different thread for each request. The state of each request is kept in thread-local objects, removed at the end of every request also when it fails (so that tokens and secrets do not remain on the pooled server threads), while the caches of signing keys and access tokens are shared.<br/><br/>
 However there may be situations where it is useful to force serialization of requests and this is the purpose of the "THREADING_MODE" configuration parameter. When "SERIAL" mode is selected a "synchronized" version of the processing method is used and this causes multiple parallel requests to be queued serially, without overlapping.<br/><br/>
 This could be useful for example for analyzing debug logs of a specific service in the presence of a large number of requests. In "PARALLEL" mode the log lines of each request/thread would be mixed with those of others. In "SERIAL" mode instead each execution completes atomically with a consistent footprint of its logs.</p>
 
@@ -371,8 +371,8 @@ This could be useful for example for analyzing debug logs of a specific service 
 ```JWT missing required claims: [nbf]```
 <p align="justify">The verification currently requires both the "exp" and "nbf" claims. Some IDP configurations (e.g. some Keycloak clients) do not issue "nbf".</p>
 
-#### 3. Server stops at boot
-<p align="justify">Any initialization error of a provider, as well as the presence of a second outbound provider in the realm, stops the server. The reason is written in the provider log lines of the <code>.out</code> file.</p>
+#### 3. Server fails at boot
+<p align="justify">Any initialization error of a provider, as well as the presence of a second outbound provider in the realm, makes the server fail at boot on purpose: the provider throws a <code>ProviderInitializationException</code>, the realm cannot be loaded and WebLogic logs <code>BEA-090870</code> (<i>The realm "myrealm" failed to be loaded</i>) with the reason and the name of the provider, then the server goes to <code>FAILED</code> and shuts itself down (<code>BEA-000383</code>, <i>A critical service failed</i>). The details are also written in the provider log lines of the <code>.out</code> file. Since the Admin Server fails too, a wrong parameter must be corrected without the console, for example in <code>config.xml</code> while the servers are stopped.</p>
 
 <p align="justify">A complete list of the open points is available in <a href="doc/CustomAuthenticators-Issues.html">CustomAuthenticators-Issues.html</a>.</p>
 

@@ -1,8 +1,8 @@
 // ##################################################################################################################################
 // VERSIONING
 // ##################################################################################################################################
-// $Revision: 2057 $
-// $Date: 2026-10-02 21:43:20 +0200 (Fri, 02 Oct 2026) $
+// $Revision: 2108 $
+// $Date: 2026-10-04 19:05:35 +0200 (Sun, 04 Oct 2026) $
 // ##################################################################################################################################
 
 package org.falpi.osb.security.providers;
@@ -14,6 +14,7 @@ package org.falpi.osb.security.providers;
 import java.util.List;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -97,8 +98,8 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
    // Variabili globali statiche di classe
    // ==================================================================================================================================
 
-   // Contatore istanze del provider
-   protected static byte IntInstanceCount = 0;
+   // Contatore istanze del provider (atomico: le istanze possono essere create in parallelo da WebLogic e da OSB)
+   protected static final AtomicInteger ObjInstanceCount = new AtomicInteger(0);
    
    // Registro delle istanze del provider di inbound
    protected static ProviderRegistry ObjInboundRegistry = new ProviderRegistry();
@@ -109,7 +110,7 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
 
    public CustomInboundAuthenticator() {
       super();      
-      StrInstanceID = "CIA:"+String.format("%03X",IntInstanceCount++);      
+      StrInstanceID = "CIA:"+String.format("%03X",ObjInstanceCount.getAndIncrement());
    }
    
    // ##################################################################################################################################
@@ -121,7 +122,6 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
       
       // Richiama costruttore padre
       init(ObjMBean);
-               
       // Salva l'istanza del provider di inbound nel registry    
       ObjInboundRegistry.put(ObjProviderContext.providerName,this);                 
    }
@@ -129,6 +129,7 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
    @Override
    public void shutdown() {
       done();
+      ObjInboundRegistry.remove(ObjProviderContext.providerName,this); // libera il registry: consente un nuovo initialize nella stessa JVM
    }
 
    @Override
@@ -165,23 +166,28 @@ public class CustomInboundAuthenticator extends CustomAuthenticator implements A
       
       // Inizializza nome del thread
       setThreadName();
-         
-      // Crea logger,config e context
-      LogManager Logger = createLogger();
-      RuntimeConfig Config = createConfig();      
-      RuntimeContext Context = createContext(ObjRequestContext);            
-      
-      // Esegue in modo sincrono o asincrono in base a configurazione
+
       CallbackHandler ObjCallback;
-      if (Config.getString(THREADING_MODE).equals("SERIAL")) {
-         ObjCallback = assertIdentitySynchImpl(StrTokenType,ObjToken);
-      } else {      
-         ObjCallback = assertIdentityAsynchImpl(StrTokenType,ObjToken);
+      try {
+
+         // Crea logger,config e context
+         LogManager Logger = createLogger();
+         RuntimeConfig Config = createConfig();
+         RuntimeContext Context = createContext(ObjRequestContext);
+
+         // Esegue in modo sincrono o asincrono in base a configurazione
+         if (Config.getString(THREADING_MODE).equals("SERIAL")) {
+            ObjCallback = assertIdentitySynchImpl(StrTokenType,ObjToken);
+         } else {
+            ObjCallback = assertIdentityAsynchImpl(StrTokenType,ObjToken);
+         }
+
+      } finally {
+
+         // Ripulisce esplicitamente le variabili di thread, anche in caso di errore
+         cleanThread();
       }
-      
-      // Ripulisce esplicitamente le variabili di thread
-      cleanThread();      
-      
+
       // Restituisce callback
       return ObjCallback;
    }

@@ -13,7 +13,7 @@ Everything is declarative: the pipeline of the services does not contain any OAU
 <p align="center"><img src="doc/images/outbound-flow.svg" /></p>
 
 ## Installation notes
-<p align="justify">The class is used in two roles. As a WebLogic security provider it is created in the realm (type <b>CustomOutboundAuthenticator</b>, e.g. named <code>CustomOAuth2Outbound</code>) and holds the MBean parameters and the caches; exactly one instance is allowed in the realm, a second one stops the server at boot. As an OSB outbound authentication class it is instantiated by OSB for each Business Service that references it; these instances borrow parameters and caches from the realm instance. The provider takes no part in user logins, so its position in the list of authentication providers and its control flag are not relevant.</p>
+<p align="justify">The class is used in two roles. As a WebLogic security provider it is created in the realm (type <b>CustomOutboundAuthenticator</b>, e.g. named <code>CustomOAuth2Outbound</code>) and holds the MBean parameters and the caches; exactly one instance is allowed in the realm, a second one makes the server fail at boot (<code>ProviderInitializationException</code>, see <a href="README.md#3-server-fails-at-boot">Known Issues</a>). As an OSB outbound authentication class it is instantiated by OSB for each Business Service that references it; these instances borrow parameters and caches from the realm instance. The provider takes no part in user logins, so its position in the list of authentication providers and its control flag are not relevant.</p>
 
 <p align="justify">Registering the class as a security provider is a design choice: OSB offers no way to configure an outbound authentication class, while the security provider infrastructure gives it typed parameters editable in the WebLogic console, persistence and change management of the domain configuration, a lifecycle managed by the server and a shared instance for the caches. See <a href="README.md#design-notes">Design notes</a>.</p>
 
@@ -37,7 +37,7 @@ Parameter                     | Default   | Description
 `THREADING_MODE`              | PARALLEL  | Multithreading strategy.
 `REQUESTS_SSL_VERIFY`         | ENABLE    | SSL enforcement for the token requests. Use DISABLE only in non-production environments: with DISABLE secrets and assertions could be disclosed.
 `REQUESTS_CONN_TIMEOUT`       | 5         | Connection timeout of the token requests (Seconds).
-`REQUESTS_READ_TIMEOUT`       | 5         | Response timeout of the token requests (Seconds).
+`REQUESTS_READ_TIMEOUT`       | 5         | Response timeout of the token requests (Seconds): maximum wait for data once connected.
 `REQUESTS_PROXY_MODE`         | DIRECT    | Proxy mediation for the token requests: DIRECT (no proxy), ANONYMOUS, BASIC, NTLM, KERBEROS (NEGOTIATE).
 `REQUESTS_PROXY_PATH`         |           | OSB resource path (\*) of the "Proxy Server" used to extract proxy host and credentials.
 `JWT_POLICIES_PATH`           |           | OSB resource path of the XML outbound policies. Mandatory. Template variables are not supported in this parameter.
@@ -49,7 +49,7 @@ Parameter                     | Default   | Description
 `CUSTOM_REQUEST_HEADERS`      |           | Static headers added to every outbound request. Each line must follow the format \<header\>=\<value\>. Headers of the policies with the same name win.
 `DEBUGGING_ASSERTION`         |           | May contain a javascript text that is used to filter log messages with TRACE or DEBUG level according to arbitrary criteria defined by the user. If present, it must return a Boolean object.
 `DEBUGGING_PROPERTIES`        |           | Allows you to send one or more string expressions to the log file. They are printed as log messages with DEBUG level.
-`KERBEROS_CONFIGURATION`      |           | Content of the krb5.conf file used for KERBEROS proxy authentication.
+`KERBEROS_CONFIGURATION`      |           | Content of the krb5.conf file used for KERBEROS proxy authentication; when empty the Kerberos settings of the server JVM are not touched.
 `ENCRYPTION_HELPER`           |           | Console helper to encrypt the passwords of the private keys (see "Client Keys"). Never used at runtime.
 
 (\*) OSB resources path are constructed as follows: `<project-name>/<root-folder>/.../<parent-folder>/<resource-name>`. Template variables are allowed.<br/>
@@ -100,7 +100,7 @@ Parameter                     | Default   | Description
 <p align="justify">The names in the example are fictitious: provider and logical names are free text and only need to be consistent with ResourceMappings and the other resources (see the <a href="README.md#resource-mappings">README</a>). The complete file, together with all the resources it refers to, is in the sample project: <a href="osb/OAUTH2/Security/OutboundPolicies.xml"><code>osb/OAUTH2/Security/OutboundPolicies.xml</code></a>.</p>
 
 #### Levels and precedence
-<p align="justify">Four levels can define the same attributes. <code>defaults</code> must define all of them; <code>projects/item</code> applies to the Business Services of the OSB project with that name, <code>endpoints/item</code> to the Business Service with that name. A project or an endpoint may reference a profile, which is applied right after the level that references it (if the endpoint references a profile, the profile of the project is ignored). The most specific value wins.</p>
+<p align="justify">Four levels can define the same attributes. <code>defaults</code> must define all of them; <code>projects/item</code> applies to the Business Services of the OSB project with that name, <code>endpoints/item</code> to the Business Service whose local name (<code>${osb.service.name}</code>, e.g. <code>BS_Orders_1.0</code>) or full path (<code>${osb.service.path}</code>, project and folders included, e.g. <code>ProjectA/Proxy/BS_Orders_1.0</code>) equals the item name. If both forms are defined for the same Business Service the full path prevails, whatever their order in the file; use the full path when the name of a Business Service is not unique in the domain, otherwise Business Services with the same name in different projects or folders share the same item. A project or an endpoint may reference a profile, which is applied right after the level that references it (if the endpoint references a profile, the profile of the project is ignored). The most specific value wins.</p>
 
 <p align="center"><img src="doc/images/outbound-policy-levels.svg" /></p>
 
@@ -111,11 +111,11 @@ Attribute                                | Meaning
 `identity`                               | Logical name of the identity of the ESB toward the backend (templates allowed, e.g. `esb-to-${osb.project}`). Its value in ResourceMappings is the client_id.
 `method`                                 | `secret` or `assertion`.
 `resource`                               | Target resource (templates allowed). Translated through ResourceMappings when `resource_mapped` is `true`; an empty value is passed as is.
-`resource_mapped`                        | `true` or `false`.
+`resource_mapped`                        | `true` or `false`. Required in `defaults`; if no level defines it, `true` is assumed.
 `scope`                                  | Scope of v2 token requests (templates allowed). Resolved after the resource, so `${resource}/.default` uses the translated value.
 `secret_request`, `assertion_request`    | Name of the request template used for each method.
 `assertion_token`                        | Name of the client assertion template.
-`token_cache_ttl`                        | Seconds (0-3600) an access token is reused; it is never used beyond its own expiry. 0 disables the cache.
+`token_cache_ttl`                        | Seconds (0-3600) an access token is reused; it is never used beyond its own expiry, and a token without `exp` claim is never reused. 0 disables the cache.
 `token_cache_index`                      | Template of the cache key: it must contain everything that makes two tokens different.
 `customHeader` / `<customHeader>`        | Header added to the request: inline as `name:value`, or as element with `name` and `value`. Values support templates.
 `secureHeader` / `<secureHeader>`        | Header whose value is the password of the remote user named `key` (templates allowed) in HeaderSecrets: inline as `name:key`, or as element with `name` and `key`. A key such as `${osb.service.name}-${osb.operation}` selects a different value per service and operation (see [Client Secrets and Header Secrets](#client-secrets-and-header-secrets)).

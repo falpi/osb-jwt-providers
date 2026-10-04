@@ -126,7 +126,7 @@ $Date: 2026-05-18 21:00:26 +0200 (Mon, 18 May 2026) $
     <MBeanAttribute  
   Name 		= "REQUESTS_CONN_TIMEOUT"
   Type 		= "java.lang.String"
-  LegalValues   = "0,5,10,15,20,25,30"
+  LegalValues   = "5,10,15,20,25,30"
   Default 	= "&quot;5&quot;"
   Description   = "Http requests connection timeout (Seconds)"
   LegalNull     = "false"
@@ -137,7 +137,7 @@ $Date: 2026-05-18 21:00:26 +0200 (Mon, 18 May 2026) $
     <MBeanAttribute  
   Name 		= "REQUESTS_READ_TIMEOUT"
   Type 		= "java.lang.String"
-  LegalValues   = "0,5,10,15,20,25,30"
+  LegalValues   = "5,10,15,20,25,30"
   Default 	= "&quot;5&quot;"
   Description   = "Http requests response timeout (Seconds)"
   Writeable 	= "true"

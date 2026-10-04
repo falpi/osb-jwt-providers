@@ -4,8 +4,8 @@
 ##################################################################################################################################
 VERSIONING
 ##################################################################################################################################
-$Revision: 2059 $
-$Date: 2026-10-02 23:37:12 +0200 (Fri, 02 Oct 2026) $
+$Revision: 2101 $
+$Date: 2026-10-04 17:16:30 +0200 (Sun, 04 Oct 2026) $
 ##################################################################################################################################
 -->
 <MBeanType
@@ -98,7 +98,7 @@ $Date: 2026-10-02 23:37:12 +0200 (Fri, 02 Oct 2026) $
     <MBeanAttribute  
   Name 		= "REQUESTS_CONN_TIMEOUT"
   Type 		= "java.lang.String"
-  LegalValues   = "0,5,10,15,20,25,30"
+  LegalValues   = "5,10,15,20,25,30"
   Default 	= "&quot;5&quot;"
   Description   = "Http requests connection timeout (Seconds)"
   LegalNull     = "false"
@@ -109,7 +109,7 @@ $Date: 2026-10-02 23:37:12 +0200 (Fri, 02 Oct 2026) $
     <MBeanAttribute  
   Name 		= "REQUESTS_READ_TIMEOUT"
   Type 		= "java.lang.String"
-  LegalValues   = "0,5,10,15,20,25,30"
+  LegalValues   = "5,10,15,20,25,30"
   Default 	= "&quot;5&quot;"
   Description   = "Http requests response timeout (Seconds)"
   Writeable 	= "true"
