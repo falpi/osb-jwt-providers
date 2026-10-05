@@ -2,19 +2,19 @@
 <clientKeys xsi:noNamespaceSchemaLocation="../Schemas/ClientKeys.xsd" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 <!-- SAMPLE: the PEM bodies below are placeholders, paste your keys (always encrypted) and the passwords      -->
 <!-- produced by the ENCRYPTION_HELPER attribute of the outbound provider (encrypted:...)                    -->
-<item provider="azure" identity="esb-default" kid="CERTIFICATE-THUMBPRINT" alg="RS256"
+<item identity="esb-default" kid="CERTIFICATE-THUMBPRINT" alg="RS256"
       password="encrypted:BASE64-VALUE-PRODUCED-BY-ENCRYPTION-HELPER">
 -----BEGIN ENCRYPTED PRIVATE KEY-----
 BASE64-ENCODED-ENCRYPTED-PKCS8-PRIVATE-KEY
 -----END ENCRYPTED PRIVATE KEY-----
 </item>
-<item provider="azure" identity="esb-to-backend-x" kid="CERTIFICATE-THUMBPRINT" alg="RS256"
+<item identity="esb-to-backend-x" kid="CERTIFICATE-THUMBPRINT" alg="RS256"
       password="encrypted:BASE64-VALUE-PRODUCED-BY-ENCRYPTION-HELPER">
 -----BEGIN ENCRYPTED PRIVATE KEY-----
 BASE64-ENCODED-ENCRYPTED-PKCS8-PRIVATE-KEY
 -----END ENCRYPTED PRIVATE KEY-----
 </item>
-<item provider="keycloak" identity="esb-keycloak" kid="KEY-ID-REGISTERED-IN-KEYCLOAK" alg="RS256"
+<item identity="esb-keycloak" kid="KEY-ID-REGISTERED-IN-KEYCLOAK" alg="RS256"
       password="encrypted:BASE64-VALUE-PRODUCED-BY-ENCRYPTION-HELPER">
 -----BEGIN ENCRYPTED PRIVATE KEY-----
 BASE64-ENCODED-ENCRYPTED-PKCS8-PRIVATE-KEY

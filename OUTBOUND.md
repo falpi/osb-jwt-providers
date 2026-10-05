@@ -107,7 +107,7 @@ Parameter                     | Default   | Description
 #### Attributes
 Attribute                                | Meaning
 ---------------------------------------- | ------------------------------------------------------------------------------------
-`provider`                               | Logical name of the IDP. Qualifies identity and resource in ResourceMappings, ClientKeys and ClientSecrets.
+`provider`                               | Logical name of the IDP. Qualifies identity and resource in ResourceMappings; ClientKeys and ClientSecrets are addressed by the identity name alone, unique across providers.
 `identity`                               | Logical name of the identity of the ESB toward the backend (templates allowed, e.g. `esb-to-${osb.project}`). Its value in ResourceMappings is the client_id.
 `method`                                 | `secret` or `assertion`.
 `resource`                               | Target resource (templates allowed). Translated through ResourceMappings when `resource_mapped` is `true`; an empty value is passed as is.
@@ -160,7 +160,7 @@ Attribute                                | Meaning
 
 ```xml
 <clientKeys xsi:noNamespaceSchemaLocation="../Schemas/ClientKeys.xsd" ...>
-<item provider="azure" identity="esb-to-backend-x" kid="<certificate thumbprint>" alg="RS256"
+<item identity="esb-to-backend-x" kid="<certificate thumbprint>" alg="RS256"
       password="encrypted:<base64>">
 -----BEGIN ENCRYPTED PRIVATE KEY-----
 ...
@@ -178,7 +178,7 @@ Attribute                                | Meaning
 ## Client Secrets and Header Secrets
 <p align="justify">Secrets are kept in two OSB "Service Account" resources of type "mapping", used as secure key/value stores: only the "Remote Users" table is read, while the local user mappings can stay empty (an anonymous mapping avoids the editor complaint about an empty list).</p>
 
-- **ClientSecrets**: remote user name `<provider>:<identity>`, remote password = `<client-secret>`. The name is the plain concatenation of provider name, colon and identity name, compared as a whole (e.g. provider `azure` and identity `esb-to-ProjectA` give `azure:esb-to-ProjectA`).
+- **ClientSecrets**: remote user name `<identity>`, remote password = `<client-secret>`. The name is the logical identity name, compared as a whole (e.g. `esb-to-ProjectA`); no provider prefix is needed because identity names are unique in ResourceMappings across all providers.
 - **HeaderSecrets**: remote user name = the resolved `key` of a secure header, remote password = `<header-value>`. The key is a template, so a single policy can select a different secret for each service or operation: with `secureHeader="x-function-key:${osb.service.name}-${osb.operation}"` (the case of Azure Function Apps, where every function has its own key) a call to the operation `createOrder` of the Business Service `BS_Orders_1.0` reads the remote user `BS_Orders_1.0-createOrder`. Any template variable can be combined (project, service, operation, metadata, ...), and a fixed key works as well.
 
 <p align="justify">Sample files: <a href="osb/OAUTH2/Security/OutboundTemplates.xml"><code>OutboundTemplates.xml</code></a>, <a href="osb/OAUTH2/Security/ClientKeys.xml"><code>ClientKeys.xml</code></a>, <a href="osb/OAUTH2/Security/ClientSecrets.sa"><code>ClientSecrets.sa</code></a> and <a href="osb/OAUTH2/Security/HeaderSecrets.sa"><code>HeaderSecrets.sa</code></a> in the sample project.</p>

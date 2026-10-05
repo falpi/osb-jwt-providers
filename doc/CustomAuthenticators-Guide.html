@@ -185,12 +185,12 @@
 <tr><td><code>OAUTH2/Security/OutboundTemplates</code></td><td>XML</td><td>Outbound</td><td>Client-assertion token templates and token request templates.</td></tr>
 <tr><td><code>OAUTH2/Security/ResourceMappings</code></td><td>XML</td><td>Both</td><td>Logical names → client_id / resource / audience values, per provider.</td></tr>
 <tr><td><code>OAUTH2/Security/ClientKeys</code></td><td>XML</td><td>Outbound</td><td>PEM private keys for signed client assertions.</td></tr>
-<tr><td><code>OAUTH2/Security/ClientSecrets</code></td><td>Service Account (mapping)</td><td>Outbound</td><td>Client secrets, remote user <code>provider:identity</code>.</td></tr>
+<tr><td><code>OAUTH2/Security/ClientSecrets</code></td><td>Service Account (mapping)</td><td>Outbound</td><td>Client secrets, remote user = identity name.</td></tr>
 <tr><td><code>OAUTH2/Security/HeaderSecrets</code></td><td>Service Account (mapping)</td><td>Outbound</td><td>Values of secure headers, remote user = header key (templates allowed, see <a href="#out-secrets">§8.6</a>).</td></tr>
 <tr><td><code>OAUTH2/Schemas/*</code></td><td>XML Schema</td><td>Both</td><td>One XSD per XML resource, referenced by the XML root.</td></tr>
 </table>
 <p>OSB resource paths are written <code>&lt;project&gt;/&lt;folder&gt;/.../&lt;resource&gt;</code>, without extension. Proxy server resources always live in <code>System/Proxy Servers/&lt;name&gt;</code>. All path attributes of the MBeans accept <a href="#templates">template variables</a>, e.g. <code>${osb.project}/Security/HeaderSecrets</code> to keep secrets per project (exception: outbound <code>JWT_POLICIES_PATH</code>, read verbatim).</p>
-<div class="note"><b>Sample project.</b> The folder <a href="../osb/OAUTH2"><code>osb/OAUTH2</code></a> contains a complete JDeveloper/OSB project with every resource of the table and a consistent configuration: two IDPs (Entra ID and Keycloak), inbound issuers, profiles and identities, outbound defaults, profiles, project and endpoint policies (including a secure header keyed by service and operation), templates, client keys and both secret stores. Names and values are fictitious, keys and secrets are placeholders; all the XML files validate against the schemas. The examples of this guide are taken from it.</div>
+<div class="note"><b>Sample project.</b> The folder <a href="../osb/OAUTH2"><code>osb/OAUTH2</code></a> contains a complete JDeveloper/OSB project with every resource of the table and a consistent configuration: two IDPs (Entra ID and Keycloak), inbound issuers, profiles and identities, outbound defaults, profiles, project and endpoint policies (including a secure header keyed by service and operation), templates, client keys and both secret stores. Names and values are fictitious, keys and secrets are placeholders; all the XML files validate against the schemas. The examples of this guide are taken from it. To use it, add <code>osb/OAUTH2/OAUTH2.jpr</code> to a Service Bus application (not to one that already contains a project named <code>OAUTH2</code>): the OSB editors work only inside a Service Bus application. Opened from the Java project, the files are still recognized as OSB resources but their designers fail with <i>Error occurred when opening editor</i>; there they can be read only with a text or XML editor (<i>Open With</i>).</div>
 <p>Resources are read through <code>OSBUtils.getResourceCached</code>: the parsed document is kept in memory and reloaded only when the OSB <i>last change time</i> of the resource changes, so a deployment of a new version is picked up at the next request.</p>
 
 <!-- ================================================================================================ -->
@@ -404,7 +404,7 @@
 <h4>Attributes</h4>
 <table class="wide">
 <tr><th>Attribute</th><th>Meaning</th></tr>
-<tr><td><code>provider</code></td><td>Logical identity provider (3–16 chars <code>[A-Za-z0-9_-]</code>). Qualifies the identity in ClientKeys, ClientSecrets and ResourceMappings.</td></tr>
+<tr><td><code>provider</code></td><td>Logical identity provider (3–16 chars <code>[A-Za-z0-9_-]</code>). Qualifies identity and resource in ResourceMappings; ClientKeys and ClientSecrets are addressed by the identity name alone, unique across providers.</td></tr>
 <tr><td><code>identity</code></td><td>Logical name of the ESB identity (templates allowed, e.g. <code>esb-to-${osb.project}</code>). Its ResourceMappings value is the client_id.</td></tr>
 <tr><td><code>method</code></td><td><code>secret</code> (client secret from ClientSecrets) or <code>assertion</code> (client assertion signed with a key from ClientKeys).</td></tr>
 <tr><td><code>resource</code></td><td>Target resource (templates allowed). Translated through ResourceMappings when <code>resource_mapped="true"</code>; an empty value is passed as is.</td></tr>
@@ -451,7 +451,7 @@
 
 <h3 id="out-keys">8.5 ClientKeys.xml and the encryption helper</h3>
 <pre>&lt;clientKeys xsi:noNamespaceSchemaLocation="../Schemas/ClientKeys.xsd" ...&gt;
-&lt;item provider="azure" identity="esb-to-backend-x" kid="&lt;certificate thumbprint&gt;" alg="RS256"
+&lt;item identity="esb-to-backend-x" kid="&lt;certificate thumbprint&gt;" alg="RS256"
       password="encrypted:&lt;base64&gt;"&gt;
 -----BEGIN ENCRYPTED PRIVATE KEY-----
 ...
@@ -470,7 +470,7 @@
 <figure><img src="images/client-secrets-service-account.png" alt="ClientSecrets service account"><figcaption>Figure 13 – ClientSecrets: one remote user per provider and identity.</figcaption></figure>
 <figure><img src="images/header-secrets-service-account.png" alt="HeaderSecrets service account"><figcaption>Figure 14 – HeaderSecrets: one remote user per header key, here composed from service name and operation.</figcaption></figure>
 <ul>
-  <li><b>ClientSecrets</b>: remote user name <code>&lt;provider&gt;:&lt;identity&gt;</code>, remote password = <code>&lt;client-secret&gt;</code>. The name is the plain concatenation of provider name, colon and identity name, compared as a whole (e.g. provider <code>azure</code> and identity <code>esb-to-ProjectA</code> give <code>azure:esb-to-ProjectA</code>).</li>
+  <li><b>ClientSecrets</b>: remote user name <code>&lt;identity&gt;</code>, remote password = <code>&lt;client-secret&gt;</code>. The name is the logical identity name, compared as a whole (e.g. <code>esb-to-ProjectA</code>); no provider prefix is needed because identity names are unique in ResourceMappings across all providers (key <code>resourceNameKey</code>). ClientKeys items are likewise identified by <code>@identity</code> alone.</li>
   <li><b>HeaderSecrets</b>: remote user name = the resolved <code>key</code> of a secure header, remote password = <code>&lt;header-value&gt;</code>. The key is a template, so a single policy can select a different secret for each service or operation: with <code>secureHeader="x-function-key:${osb.service.name}-${osb.operation}"</code> (the case of Azure Function Apps, where every function has its own key) a call to the operation <code>createOrder</code> of the Business Service <code>BS_Orders_1.0</code> reads the remote user <code>BS_Orders_1.0-createOrder</code>. Any template variable can be combined (project, service, operation, metadata, ...), and a fixed key works as well.</li>
 </ul>
 <div class="warn">Rename remote users by editing the <code>.sa</code> file: the JDeveloper service account editor resets the passwords of renamed rows. A <code>.sa</code> file that contains passwords encrypted for another domain (<code>{AES256}…</code>) makes JDeveloper <i>Refresh Application</i> fail with <code>Invalid padding</code>.</div>
@@ -588,7 +588,7 @@ ${current.epoch}+300</pre>
 ... &lt;INFO&gt;  Scripting Engine ......: Oracle Nashorn (1.8.0_391)
 ... &lt;INFO&gt;  Scripting Language ....: ECMAScript (ECMA - 262 Edition 5.1)
 ... &lt;INFO&gt;  ------------------------------------------------------------------------------------------
-... &lt;INFO&gt;  Assertion Filter ......: oracle.osb.transports.main.httptransport</pre>
+... &lt;INFO&gt;  Assertion trace filter installed</pre>
 <p>The last line is written only by the inbound provider: it installs a <code>java.util.logging.Filter</code> (<code>CustomInboundAuthenticator.AssertionTraceFilter</code>) on the OSB logger <code>oracle.osb.transports.main.httptransport</code>, which removes the stack trace from the OSB error <code>OSB-381327</code> logged for every failed identity assertion (records whose exception is a <code>LoginException</code> with <code>Security:090377</code>): the exception is replaced by a copy with the same type and message and an empty stack trace, so the OSB line and the exception line with <code>Security:090377</code> and the reason stay in the WebLogic/ODL logs (for monitoring and IDS), other transport messages and any existing filter are untouched. The filter is installed once (reference count of the active inbound instances, strong static reference to the logger) and the previous filter is restored when the last instance shuts down, so no provider class stays referenced by the platform logger after a realm restart. Failures to install it are logged at WARN and do not stop the boot.</p>
 <h3>11.2 Inbound request (DEBUG, abridged)</h3>
 <pre>... &lt;DEBUG&gt; INBOUND AUTH

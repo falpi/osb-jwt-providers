@@ -735,9 +735,9 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
             String StrClientSecretsParsedPath = StringUtils.replaceTemplates(Context,Config.getString(JWT_CLIENT_SECRETS_PATH));            
             Logger.logProperty(LogLevel.DEBUG,"Client Secret Path",StrClientSecretsParsedPath);
             
-            // Acquisisce il service account dei secret e cerca il secret associato a provider e identita'
+            // Acquisisce il service account dei secret e cerca il secret associato all'identita' (nome logico univoco nel ResourceMappings)
             XmlObject ObjClientSecrets = OSBUtils.getResourceCached("ServiceAccount",StrClientSecretsParsedPath);
-            String StrClientSecret = XMLUtils.getTextValue(ObjClientSecrets,"//*:remote-user[*:username/text()='"+StrPROVIDER+":"+StrIDENTITY+"']/*:password/text()");
+            String StrClientSecret = XMLUtils.getTextValue(ObjClientSecrets,"//*:remote-user[*:username/text()='"+StrIDENTITY+"']/*:password/text()");
 
             // Se il secret non e' disponibile genera eccezione
             if (StrClientSecret.isEmpty()) throw new Exception("secret not found");
@@ -751,10 +751,10 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
             String StrClientKeysParsedPath = StringUtils.replaceTemplates(Context,Config.getString(JWT_CLIENT_KEYS_PATH));            
             Logger.logProperty(LogLevel.DEBUG,"Client Keys Path",StrClientKeysParsedPath);
             
-            // Acquisisce la chiave privata dell'identita' mediante la risorsa OSB di tipo XML
+            // Acquisisce la chiave privata dell'identita' (nome logico univoco nel ResourceMappings) mediante la risorsa OSB di tipo XML
             XmlObject ObjClientKey = 
                validateResource(StrClientKeysParsedPath).selectPath(
-                  "/clientKeys/item[@provider='"+StrPROVIDER+"' and @identity='"+StrIDENTITY+"']")[0];
+                  "/clientKeys/item[@identity='"+StrIDENTITY+"']")[0];
             
             // Crea un assertion token
             JWTProvider ObjClientAssertionToken =

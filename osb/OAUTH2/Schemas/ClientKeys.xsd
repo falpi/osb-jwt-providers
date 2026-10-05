@@ -30,10 +30,9 @@
          </xsd:sequence>
       </xsd:complexType>
       
-      <!-- dichiara che la coppia provider/identity deve essere univoca -->
+      <!-- dichiara che l'identity deve essere univoca (come il nome logico nel ResourceMappings) -->
       <xsd:key name="clientIdentityKey">
          <xsd:selector xpath="item"/>
-         <xsd:field xpath="@provider"/>
          <xsd:field xpath="@identity"/>
       </xsd:key>
    </xsd:element>
@@ -42,7 +41,6 @@
       <xsd:complexType>
          <xsd:simpleContent>
             <xsd:extension base="xsd:string">
-               <xsd:attribute name="provider" use="required" type="xsd:string"/>
                <xsd:attribute name="identity" use="required" type="xsd:string"/>
                <xsd:attribute name="kid" use="required" type="xsd:string"/>
                <xsd:attribute name="alg" use="required" type="supportedAlg"/>
