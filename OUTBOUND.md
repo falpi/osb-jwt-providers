@@ -68,7 +68,7 @@ Parameter                     | Default   | Description
    <!-- SAMPLE: global defaults (every attribute is required here) -->
    <defaults provider="azure" identity="esb-default" method="assertion"
              scope="${resource}/.default" resource="api-${osb.project}" resource_mapped="true"
-             secret_request="azure-token-v1" assertion_request="azure-token-v1" assertion_token="standard"
+             secret_request="azure-secret-v1" assertion_request="azure-assert-v1" assertion_token="standard"
              token_cache_ttl="3000" token_cache_index="${token_url}:${identity}:${resource}:${scope}:${method}" />
 
    <!-- profiles: named sets of changes, referenced by projects or endpoints -->
@@ -90,7 +90,7 @@ Parameter                     | Default   | Description
          <customHeader name="x-correlation-id" value="${uuid}" />
       </item>
       <item name="BS_BackendX_1.0" identity="esb-to-backend-x" method="assertion" resource="backend-x-api" />
-      <item name="BS_Inventory_1.0" provider="keycloak" identity="esb-keycloak" method="assertion" assertion_request="keycloak"
+      <item name="BS_Inventory_1.0" provider="keycloak" identity="esb-keycloak" method="assertion" assertion_request="keycloak-assert"
             resource="" resource_mapped="false" />
    </endpoints>
 
@@ -113,8 +113,8 @@ Attribute                                | Meaning
 `resource`                               | Target resource (templates allowed). Translated through ResourceMappings when `resource_mapped` is `true`; an empty value is passed as is.
 `resource_mapped`                        | `true` or `false`. Required in `defaults`; if no level defines it, `true` is assumed.
 `scope`                                  | Scope of v2 token requests (templates allowed). Resolved after the resource, so `${resource}/.default` uses the translated value.
-`secret_request`, `assertion_request`    | Name of the request template used for each method.
-`assertion_token`                        | Name of the client assertion template.
+`secret_request`, `assertion_request`    | Name of the request template used for each method (the name is the key of the template in OutboundTemplates).
+`assertion_token`                        | Name of the client assertion (token) template.
 `token_cache_ttl`                        | Seconds (0-3600) an access token is reused; it is never used beyond its own expiry, and a token without `exp` claim is never reused. 0 disables the cache.
 `token_cache_index`                      | Template of the cache key: it must contain everything that makes two tokens different.
 `customHeader` / `<customHeader>`        | Header added to the request: inline as `name:value`, or as element with `name` and `value`. Values support templates.
@@ -127,7 +127,7 @@ Attribute                                | Meaning
 
 ```xml
 <outboundTemplates xsi:noNamespaceSchemaLocation="../Schemas/OutboundTemplates.xsd" ...>
-   <token name="standard" type="client_assertion">
+   <token name="standard">
       <claim name="iss" type="String">${client_id}</claim>
       <claim name="sub" type="String">${client_id}</claim>
       <claim name="aud" type="String">${token_url}</claim>
@@ -135,13 +135,13 @@ Attribute                                | Meaning
       <claim name="exp" type="Integer">${current.epoch}+60</claim>
       <claim name="jti" type="String">${uuid}</claim>
    </token>
-   <request name="azure-token-v1" method="secret" tokenURL="https://login.microsoftonline.com/<tenant>/oauth2/token">
+   <request name="azure-secret-v1" tokenURL="https://login.microsoftonline.com/<tenant>/oauth2/token">
       <parameter name="grant_type"    type="String">client_credentials</parameter>
       <parameter name="client_id"     type="String">${client_id}</parameter>
       <parameter name="client_secret" type="String">${client_secret}</parameter>
       <parameter name="resource"      type="String">${resource}</parameter>
    </request>
-   <request name="azure-token-v2" method="assertion" tokenURL="https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token">
+   <request name="azure-assert-v2" tokenURL="https://login.microsoftonline.com/<tenant>/oauth2/v2.0/token">
       <parameter name="grant_type"            type="String">client_credentials</parameter>
       <parameter name="client_id"             type="String">${client_id}</parameter>
       <parameter name="client_assertion_type" type="String">urn:ietf:params:oauth:client-assertion-type:jwt-bearer</parameter>
@@ -151,8 +151,8 @@ Attribute                                | Meaning
 </outboundTemplates>
 ```
 
-- A **request** (unique by `name` and `method`) defines the token endpoint (`tokenURL`, available as `${token_url}`) and the form parameters, sent with `POST` and `Content-Type: application/x-www-form-urlencoded`. The JSON response must contain `access_token`.
-- A **token** (unique by `name` and `type`, type `client_assertion`) defines the claims of the client assertion, signed with the key of the identity (header `typ=JWT` and `kid` of the key).
+- A **request** (unique by `name`) defines the token endpoint (`tokenURL`, available as `${token_url}`) and the form parameters, sent with `POST` and `Content-Type: application/x-www-form-urlencoded`. The JSON response must contain `access_token`.
+- A **token** (unique by `name`) defines the claims of the client assertion, signed with the key of the identity (header `typ=JWT` and `kid` of the key).
 - **Value types**: `String` values are taken literally after the resolution of the templates; `Integer` values are JavaScript expressions that must return an integer (e.g. `${current.epoch}+60`).
 
 ## Client Keys

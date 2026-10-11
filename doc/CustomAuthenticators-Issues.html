@@ -333,10 +333,10 @@
 <td>Keep a regression test per target.</td></tr>
 
 <tr><td class="id">I-03</td><td><span class="sev Info">Info</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:90, 200, 898-932</code>; <code>CustomInboundAuthenticator.java:104, 125, 131</code>; <code>CustomAuthenticator.java:231-236</code></td>
-<td>Unused code: <code>ENCRYPTION_HELPER</code> constant, <code>encodeProperties()</code>, inbound registry (filled in <code>initialize()</code> and cleared in <code>shutdown()</code>, never read), <code>providerDescriptor</code>; "Provider context init" is logged as WARN although it is a normal event.</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:90, 898-932</code>; <code>CustomInboundAuthenticator.java:104, 125, 131</code>; <code>CustomAuthenticator.java:231-236</code></td>
+<td>Unused code: <code>ENCRYPTION_HELPER</code> constant, <code>encodeProperties()</code>, inbound registry (filled in <code>initialize()</code> and cleared in <code>shutdown()</code>, never read), <code>providerDescriptor</code>.</td>
 <td>Noise for maintainers and in logs.</td>
-<td>Remove or document; log the context init at INFO.</td></tr>
+<td>Remove or document.</td></tr>
 
 <tr><td class="id">I-04</td><td><span class="sev Info">Info</span></td><td>Providers</td>
 <td class="loc"><code>CustomAuthenticator.java:786-791</code></td>

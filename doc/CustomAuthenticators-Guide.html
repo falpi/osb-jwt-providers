@@ -371,7 +371,7 @@
    &lt;!-- SAMPLE: global defaults (every attribute is required here) --&gt;
    &lt;defaults provider="azure" identity="esb-default" method="assertion"
              scope="${resource}/.default" resource="api-${osb.project}" resource_mapped="true"
-             secret_request="azure-token-v1" assertion_request="azure-token-v1" assertion_token="standard"
+             secret_request="azure-secret-v1" assertion_request="azure-assert-v1" assertion_token="standard"
              token_cache_ttl="3000" token_cache_index="${token_url}:${identity}:${resource}:${scope}:${method}" /&gt;
 
    &lt;!-- profiles: named sets of changes, referenced by projects or endpoints --&gt;
@@ -393,7 +393,7 @@
          &lt;customHeader name="x-correlation-id" value="${uuid}" /&gt;
       &lt;/item&gt;
       &lt;item name="BS_BackendX_1.0" identity="esb-to-backend-x" method="assertion" resource="backend-x-api" /&gt;
-      &lt;item name="BS_Inventory_1.0" provider="keycloak" identity="esb-keycloak" method="assertion" assertion_request="keycloak"
+      &lt;item name="BS_Inventory_1.0" provider="keycloak" identity="esb-keycloak" method="assertion" assertion_request="keycloak-assert"
             resource="" resource_mapped="false" /&gt;
    &lt;/endpoints&gt;
 
@@ -410,8 +410,8 @@
 <tr><td><code>resource</code></td><td>Target resource (templates allowed). Translated through ResourceMappings when <code>resource_mapped="true"</code>; an empty value is passed as is.</td></tr>
 <tr><td><code>resource_mapped</code></td><td><code>true</code>/<code>false</code> (required in <code>defaults</code>; if no level defines it, <code>true</code> is assumed).</td></tr>
 <tr><td><code>scope</code></td><td>Scope for v2 token requests (templates allowed, resolved after <code>resource</code>, so <code>${resource}/.default</code> uses the mapped value).</td></tr>
-<tr><td><code>secret_request</code>, <code>assertion_request</code></td><td>Name of the request template (with <code>@method</code> secret / assertion) in OutboundTemplates.</td></tr>
-<tr><td><code>assertion_token</code></td><td>Name of the client-assertion token template.</td></tr>
+<tr><td><code>secret_request</code>, <code>assertion_request</code></td><td>Name of the request template used by each method; the name is the key of the <code>request</code> element in OutboundTemplates.</td></tr>
+<tr><td><code>assertion_token</code></td><td>Name of the client-assertion template; the name is the key of the <code>token</code> element in OutboundTemplates.</td></tr>
 <tr><td><code>token_cache_ttl</code></td><td>0–3600 s an access token is reused (also bounded by its <code>exp</code>; a token without <code>exp</code> is never reused). 0 disables the cache.</td></tr>
 <tr><td><code>token_cache_index</code></td><td>Template of the cache key. Must contain everything that makes tokens different (URL, identity, resource, scope, method).</td></tr>
 <tr><td><code>customHeader</code> (attribute) / <code>&lt;customHeader name value/&gt;</code></td><td>Header added to the request. The inline form is <code>name:value</code>. Values support templates.</td></tr>
@@ -421,7 +421,7 @@
 
 <h3 id="out-templates">8.4 OutboundTemplates.xml</h3>
 <pre>&lt;outboundTemplates xsi:noNamespaceSchemaLocation="../Schemas/OutboundTemplates.xsd" ...&gt;
-   &lt;token name="standard" type="client_assertion"&gt;
+   &lt;token name="standard"&gt;
       &lt;claim name="iss" type="String"&gt;${client_id}&lt;/claim&gt;
       &lt;claim name="sub" type="String"&gt;${client_id}&lt;/claim&gt;
       &lt;claim name="aud" type="String"&gt;${token_url}&lt;/claim&gt;
@@ -429,13 +429,13 @@
       &lt;claim name="exp" type="Integer"&gt;${current.epoch}+60&lt;/claim&gt;
       &lt;claim name="jti" type="String"&gt;${uuid}&lt;/claim&gt;
    &lt;/token&gt;
-   &lt;request name="azure-token-v1" method="secret" tokenURL="https://login.microsoftonline.com/&lt;tenant&gt;/oauth2/token"&gt;
+   &lt;request name="azure-secret-v1" tokenURL="https://login.microsoftonline.com/&lt;tenant&gt;/oauth2/token"&gt;
       &lt;parameter name="grant_type"    type="String"&gt;client_credentials&lt;/parameter&gt;
       &lt;parameter name="client_id"     type="String"&gt;${client_id}&lt;/parameter&gt;
       &lt;parameter name="client_secret" type="String"&gt;${client_secret}&lt;/parameter&gt;
       &lt;parameter name="resource"      type="String"&gt;${resource}&lt;/parameter&gt;
    &lt;/request&gt;
-   &lt;request name="azure-token-v2" method="assertion" tokenURL="https://login.microsoftonline.com/&lt;tenant&gt;/oauth2/v2.0/token"&gt;
+   &lt;request name="azure-assert-v2" tokenURL="https://login.microsoftonline.com/&lt;tenant&gt;/oauth2/v2.0/token"&gt;
       &lt;parameter name="grant_type"            type="String"&gt;client_credentials&lt;/parameter&gt;
       &lt;parameter name="client_id"             type="String"&gt;${client_id}&lt;/parameter&gt;
       &lt;parameter name="client_assertion_type" type="String"&gt;urn:ietf:params:oauth:client-assertion-type:jwt-bearer&lt;/parameter&gt;
@@ -444,8 +444,8 @@
    &lt;/request&gt;
 &lt;/outboundTemplates&gt;</pre>
 <ul>
-  <li>A <b>request</b> (<code>name</code> + <code>method</code> unique) defines the token endpoint (<code>tokenURL</code>, exposed as <code>${token_url}</code>) and the form parameters, sent URL-encoded with <code>Content-Type: application/x-www-form-urlencoded</code>. The JSON response must contain <code>access_token</code>.</li>
-  <li>A <b>token</b> (<code>name</code> + <code>type</code> unique, type <code>client_assertion</code>) defines the claims of the client assertion, signed with the key of the identity (header <code>typ=JWT</code>, <code>kid</code> when not empty).</li>
+  <li>A <b>request</b> (<code>name</code> unique) defines the token endpoint (<code>tokenURL</code>, exposed as <code>${token_url}</code>) and the form parameters, sent URL-encoded with <code>Content-Type: application/x-www-form-urlencoded</code>. The JSON response must contain <code>access_token</code>.</li>
+  <li>A <b>token</b> (<code>name</code> unique) defines the claims of the client assertion, signed with the key of the identity (header <code>typ=JWT</code>, <code>kid</code> when not empty).</li>
   <li><b>Value types</b>: <code>String</code> values are wrapped in quotes and evaluated (templates resolved first), so they are taken literally; <code>Integer</code> values are JavaScript expressions that must return an integer (e.g. <code>${current.epoch}+60</code>). See <a href="#scripting">§10</a>.</li>
 </ul>
 
@@ -638,7 +638,7 @@ ${current.epoch}+300</pre>
 <ul>
   <li><b>Per-request state</b> (logger, config snapshot of the MBean, context) is kept in <code>ThreadLocal</code>s created at the start of each call and cleared at the end by <code>cleanThread</code>, called in a <code>finally</code> block so that the request objects, tokens and secrets never stay on the pooled thread, also after an error or an exception. WebLogic calls identity asserters and outbound authentication in parallel; <code>THREADING_MODE=SERIAL</code> serializes the calls of one instance.</li>
   <li><b>Thread names</b>: <code>setThreadName()</code> renames the executing thread to the 7-digit request counter of the instance, which appears in the log lines.</li>
-  <li><b>Instances</b>: WebLogic creates one inbound instance per realm provider. For outbound, WebLogic creates the realm instance (with MBean and caches) and OSB creates one instance per business service; the first call of each borrows the provider context of the realm instance from a static registry (logged as <i>Provider context init</i>). A second outbound provider in the realm makes the server fail at boot: the provider throws <code>ProviderInitializationException</code>, the realm fails to load (<code>BEA-090870</code>) and the server goes to <code>FAILED</code> and shuts itself down (<code>BEA-000383</code>). <code>shutdown()</code> removes the realm instance from the registry, so a new <code>initialize()</code> in the same JVM is not taken for a second provider.</li>
+  <li><b>Instances</b>: WebLogic creates one inbound instance per realm provider. For outbound, WebLogic creates the realm instance (with MBean and caches) and OSB creates one instance per business service; the first call of each borrows the provider context of the realm instance from a static registry (logged at INFO as <i>Provider context initialized</i>). A second outbound provider in the realm makes the server fail at boot: the provider throws <code>ProviderInitializationException</code>, the realm fails to load (<code>BEA-090870</code>) and the server goes to <code>FAILED</code> and shuts itself down (<code>BEA-000383</code>). <code>shutdown()</code> removes the realm instance from the registry, so a new <code>initialize()</code> in the same JVM is not taken for a second provider.</li>
   <li><b>Caches</b> (all in memory, per JVM): parsed OSB resources by change time (<code>OSBUtils</code>), positive validation outcomes (<code>ObjValidationCache</code>), JWKS keys (<code>JWTCache.keysCache</code>, by <code>jwksURL#kid</code>), access tokens (<code>JWTCache.tokensCache</code>, by cache index). Expired entries are removed when the same key is looked up again.</li>
 </ul>
 

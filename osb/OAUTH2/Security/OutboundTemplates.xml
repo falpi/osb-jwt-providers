@@ -4,7 +4,7 @@
    <!-- SAMPLE: replace 00000000-0000-0000-0000-000000000000 with your tenant id and the keycloak.example.com URL with your realm -->
 
    <!-- Client Assertion Token -->
-   <token name="standard" type="client_assertion">
+   <token name="standard">
       <claim name="iss" type="String">${client_id}</claim>
       <claim name="sub" type="String">${client_id}</claim>
       <claim name="aud" type="String">${token_url}</claim>
@@ -14,7 +14,7 @@
    </token>
 
    <!-- Access Token Request with Secret (Entra ID v1) -->
-   <request name="azure-token-v1" method="secret" tokenURL="https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2/token">
+   <request name="azure-secret-v1" tokenURL="https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2/token">
       <parameter name="grant_type"    type="String">client_credentials</parameter>
       <parameter name="client_id"     type="String">${client_id}</parameter>
       <parameter name="client_secret" type="String">${client_secret}</parameter>
@@ -22,7 +22,7 @@
    </request>
 
    <!-- Access Token Request with Assertion (Entra ID v1) -->
-   <request name="azure-token-v1" method="assertion" tokenURL="https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2/token">
+   <request name="azure-assert-v1" tokenURL="https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2/token">
       <parameter name="grant_type"            type="String">client_credentials</parameter>
       <parameter name="client_id"             type="String">${client_id}</parameter>
       <parameter name="client_assertion_type" type="String">urn:ietf:params:oauth:client-assertion-type:jwt-bearer</parameter>
@@ -31,7 +31,7 @@
    </request>
 
    <!-- Access Token Request with Assertion (Entra ID v2) -->
-   <request name="azure-token-v2" method="assertion" tokenURL="https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2/v2.0/token">
+   <request name="azure-assert-v2" tokenURL="https://login.microsoftonline.com/00000000-0000-0000-0000-000000000000/oauth2/v2.0/token">
       <parameter name="grant_type"            type="String">client_credentials</parameter>
       <parameter name="client_id"             type="String">${client_id}</parameter>
       <parameter name="client_assertion_type" type="String">urn:ietf:params:oauth:client-assertion-type:jwt-bearer</parameter>
@@ -40,7 +40,7 @@
    </request>
 
    <!-- Access Token Request with Assertion (Keycloak) -->
-   <request name="keycloak" method="assertion" tokenURL="https://keycloak.example.com/realms/example-realm/protocol/openid-connect/token">
+   <request name="keycloak-assert" tokenURL="https://keycloak.example.com/realms/example-realm/protocol/openid-connect/token">
       <parameter name="grant_type"            type="String">client_credentials</parameter>
       <parameter name="client_id"             type="String">${client_id}</parameter>
       <parameter name="client_assertion_type" type="String">urn:ietf:params:oauth:client-assertion-type:jwt-bearer</parameter>

@@ -198,7 +198,7 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
          // Se non c'è ancora nessun provider di outbound agganciato all'istanza dell'autenticator estrae il primo registrato
          if (ObjProviderContext==null) {
             ObjProviderContext = ObjOutboundRegistry.values().iterator().next().ObjProviderContext;
-            Logger.logMessage(LogLevel.WARN,"Provider context init ("+ObjProviderContext.providerName+")");
+            Logger.logMessage(LogLevel.INFO,"Provider context initialized ("+ObjProviderContext.providerName+")");
          }
 
          // ==================================================================================================================================
@@ -606,15 +606,15 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
          Logger.logProperty(LogLevel.DEBUG,"Templates Path",StrTemplatesPath);
          XmlObject ObjTemplates = validateResource(StrTemplatesPath);
          
-         // Risolve gli identitificativi dei template e li mette nel context
+         // Risolve i template indicati dalle policy (i nomi sono le chiavi dei template, univoche per tipo)
          XmlObject ObjTokenTemplate = null;
          XmlObject ObjRequestTemplate = null;
          
          if (Context.get("method").equals("secret")) {
-            ObjRequestTemplate = ObjTemplates.selectPath("/outboundTemplates/request[@name='"+Context.getString("secret_request")+"' and @method='secret']")[0];
+            ObjRequestTemplate = selectTemplate(ObjTemplates,"request",Context.getString("secret_request"));
          } else {
-            ObjTokenTemplate = ObjTemplates.selectPath("/outboundTemplates/token[@name='"+Context.getString("assertion_token")+"' and @type='client_assertion']")[0];
-            ObjRequestTemplate = ObjTemplates.selectPath("/outboundTemplates/request[@name='"+Context.getString("assertion_request")+"' and @method='assertion']")[0];            
+            ObjTokenTemplate = selectTemplate(ObjTemplates,"token",Context.getString("assertion_token"));
+            ObjRequestTemplate = selectTemplate(ObjTemplates,"request",Context.getString("assertion_request"));
          }
 
          // Logging templates
@@ -899,6 +899,15 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
          Logger.logMessage(LogLevel.ERROR,StrError,ObjException);
          throw new TransportException(StrError);         
       }      
+   }
+   
+   // ==================================================================================================================================
+   // Seleziona un template per tipo (token o request) e nome, con errore esplicito se non esiste
+   // ==================================================================================================================================
+   protected XmlObject selectTemplate(XmlObject ObjTemplates, String StrType, String StrName) throws Exception {
+      XmlObject[] ArrTemplates = ObjTemplates.selectPath("/outboundTemplates/"+StrType+"[@name='"+StrName+"']");
+      if (ArrTemplates.length==0) throw new Exception(StrType+" template '"+StrName+"' not found");
+      return ArrTemplates[0];
    }
    
    // ==================================================================================================================================

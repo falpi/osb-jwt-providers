@@ -5,20 +5,7 @@
    <!-- ################################################################################ -->
    <!-- TIPI                                                                             -->
    <!-- ################################################################################ -->
-   
-  <xsd:simpleType name="methodType">
-    <xsd:restriction base="xsd:string">
-      <xsd:enumeration value="secret"/>
-      <xsd:enumeration value="assertion"/>
-    </xsd:restriction>
-  </xsd:simpleType>
- 
-   <xsd:simpleType name="tokenType">
-    <xsd:restriction base="xsd:string">
-      <xsd:enumeration value="client_assertion"/>
-    </xsd:restriction>
-  </xsd:simpleType>
-  
+     
   <xsd:simpleType name="valueType">
     <xsd:restriction base="xsd:string">
       <xsd:enumeration value="String"/>
@@ -40,7 +27,6 @@
          <xsd:element name="claim" type="detailType" maxOccurs="unbounded"/>
       </xsd:sequence>
       <xsd:attribute name="name" use="required" type="xsd:string"/>
-      <xsd:attribute name="type" use="required" type="tokenType"/>
    </xsd:complexType>
    
    <xsd:complexType name="requestItemType">
@@ -48,7 +34,6 @@
          <xsd:element name="parameter" type="detailType" maxOccurs="unbounded"/>
       </xsd:sequence>
       <xsd:attribute name="name"     use="required" type="xsd:string"/>
-      <xsd:attribute name="method"   use="required" type="methodType"/>
       <xsd:attribute name="tokenURL" use="required" type="xsd:string"/>
    </xsd:complexType>
    
@@ -64,17 +49,15 @@
          </xsd:choice>
       </xsd:complexType>
       
-      <!-- dichiara che la coppia name/type dei token deve essere univoca -->
+      <!-- dichiara che il nome dei token template deve essere univoco -->
       <xsd:key name="tokenNameKey">
          <xsd:selector xpath="token"/>
          <xsd:field xpath="@name"/>
-         <xsd:field xpath="@type"/>
       </xsd:key>
-      <!-- dichiara che la coppia name/method delle request deve essere univoca -->
+      <!-- dichiara che il nome delle request template deve essere univoco -->
       <xsd:key name="requestNameKey">
          <xsd:selector xpath="request"/>
          <xsd:field xpath="@name"/>
-         <xsd:field xpath="@method"/>
       </xsd:key>
    </xsd:element>
    
