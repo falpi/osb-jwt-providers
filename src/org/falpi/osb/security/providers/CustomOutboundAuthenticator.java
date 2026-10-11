@@ -902,11 +902,12 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
    }
    
    // ==================================================================================================================================
-   // Seleziona un template per tipo (token o request) e nome, con errore esplicito se non esiste
+   // Seleziona un template per tipo (token o request) e nome, con errore esplicito se non esiste o se non e' univoco
    // ==================================================================================================================================
    protected XmlObject selectTemplate(XmlObject ObjTemplates, String StrType, String StrName) throws Exception {
       XmlObject[] ArrTemplates = ObjTemplates.selectPath("/outboundTemplates/"+StrType+"[@name='"+StrName+"']");
       if (ArrTemplates.length==0) throw new Exception(StrType+" template '"+StrName+"' not found");
+      if (ArrTemplates.length>1) throw new Exception(StrType+" template '"+StrName+"' is not unique ("+ArrTemplates.length+" definitions)");
       return ArrTemplates[0];
    }
    

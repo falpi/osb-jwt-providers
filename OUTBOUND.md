@@ -216,7 +216,7 @@ Service Account not allowed (service)                       | The Business Servi
 Configuration error                                         | Empty mandatory parameter.
 Error while parsing security policies                       | Policies not loadable, defaults or profile missing.
 Error in security policies custom headers (...)             | Malformed header definition.
-Error while parsing templates                               | Templates not loadable or template not found for the method.
+Error while parsing templates                               | Templates not loadable, or the template named by the policy is missing or defined more than once: the cause is logged as `request/token template '<name>' not found` or `... is not unique (<n> definitions)`.
 Error while parsing resource mappings                       | ResourceMappings not loadable.
 Identity mapping error (provider:identity)                  | Identity not mapped, secret not found, client key not found or not usable.
 Resource error (resource) / Scope error (scope)             | Template or mapping error.

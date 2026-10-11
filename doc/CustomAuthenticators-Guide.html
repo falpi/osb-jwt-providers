@@ -480,7 +480,7 @@
 <ol>
   <li><b>Context</b>: checks the realm provider and the absence of a service account, borrows the context of the realm instance, builds config and context, detects the operation (§8.8).</li>
   <li><b>Policies</b>: selects the applicable levels, consolidates the attributes and the headers.</li>
-  <li><b>Templates and mappings</b>: request template for the method (plus token template for assertion) → <code>${token_url}</code>; loads ResourceMappings.</li>
+  <li><b>Templates and mappings</b>: request template for the method (plus token template for assertion), selected by the name given in the policy (<code>selectTemplate</code>: a missing or duplicated name stops the request) → <code>${token_url}</code>; loads ResourceMappings.</li>
   <li><b>Authentication</b>: resolves the identity templates, translates the identity into <code>${client_id}</code>; method <code>secret</code> reads <code>${client_secret}</code> from ClientSecrets (<i>secret not found</i> if missing); method <code>assertion</code> signs the token template with the ClientKeys item → <code>${client_assertion}</code>.</li>
   <li><b>Authorization</b>: resolves and translates <code>resource</code>, then resolves <code>scope</code>.</li>
   <li><b>Access token</b>: computes the cache key; on a miss posts the request template to <code>token_url</code>, parses <code>access_token</code> and caches it.</li>
@@ -707,6 +707,7 @@ ${current.epoch}+300</pre>
 <tr><td><code>prepareAuthentication()</code></td><td>700</td><td>client_id, client secret or client assertion.</td></tr>
 <tr><td><code>prepareAuthorization()</code></td><td>771</td><td>Resource and scope.</td></tr>
 <tr><td><code>prepareAccessToken()</code></td><td>820</td><td>Token cache and token request.</td></tr>
+<tr><td><code>selectTemplate(XmlObject,String,String)</code></td><td>907</td><td>Selects a token or request template by name; error if missing or not unique.</td></tr>
 <tr><td><code>detectOperation(...)</code></td><td>937</td><td>§8.8.</td></tr>
 <tr><td><code>createConfig()</code>, <code>createContext(...)</code></td><td>1083, 1124</td><td>MBean snapshot; outbound variables.</td></tr>
 </table>
@@ -833,7 +834,7 @@ Outbound-Version: 1.0.0</pre>
 <tr><td>Configuration error</td><td>Empty mandatory MBean parameter.</td></tr>
 <tr><td>Error while parsing security policies</td><td>Policies not loadable or defaults/profile missing.</td></tr>
 <tr><td>Error in security policies custom headers (…)</td><td>Malformed header definition.</td></tr>
-<tr><td>Error while parsing templates</td><td>Templates not loadable or request/token template not found for the method.</td></tr>
+<tr><td>Error while parsing templates</td><td>Templates not loadable, or the request/token template named by the policy is missing or defined more than once; the logged cause is <code>&lt;type&gt; template '&lt;name&gt;' not found</code> or <code>... is not unique (&lt;n&gt; definitions)</code>. Duplicate names are also reported by the XSD validation, which does not block the resource.</td></tr>
 <tr><td>Error while parsing resource mappings</td><td>ResourceMappings not loadable.</td></tr>
 <tr><td>Identity mapping error (provider:identity)</td><td>Identity not mapped, secret not found, client key not found or not usable, template error.</td></tr>
 <tr><td>Resource error (resource) / Scope error (scope)</td><td>Template or mapping error.</td></tr>

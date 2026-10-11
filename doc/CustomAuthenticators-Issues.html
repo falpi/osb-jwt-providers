@@ -67,7 +67,7 @@
 <td>Escape after resolution, or better pass values as script bindings; for <code>String</code> types skip the script engine entirely and use the resolved value.</td></tr>
 
 <tr><td class="id">M-04</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:438, 490, 494, 605-608, 731, 748</code>; <code>CustomAuthenticator.java:659</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:438, 490, 494, 731, 748, 908</code>; <code>CustomAuthenticator.java:659</code></td>
 <td>XPath expressions are built by concatenating values. Most come from configuration, but the secure header key (438) is resolved from templates that can contain request-derived variables (<code>${http.header.*}</code>, <code>${osb.metadata.*}</code>, <code>${osb.context.*}</code>).</td>
 <td>A crafted value such as <code>x' or '1'='1</code> selects the first remote user of HeaderSecrets and its secret is sent to the backend; names with an apostrophe break the lookup.</td>
 <td>Compare in Java as in <code>reverseTranslateResource</code>, or reject values containing quotes; document which variables are safe in secret keys.</td></tr>
@@ -182,10 +182,10 @@
 <td>Use <code>Config.getString</code> + <code>replaceTemplates</code> as for the other paths.</td></tr>
 
 <tr><td class="id">L-02</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:486, 510, 605, 607, 608, 748</code>; <code>CustomInboundAuthenticator.java:501, 660</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:486, 510, 748</code>; <code>CustomInboundAuthenticator.java:501, 660</code></td>
 <td>Results of <code>selectPath</code> are indexed with <code>[0]</code> without checking the length.</td>
-<td>A missing template, client key, profile or default (possible because invalid resources are still used, M-06) gives an <code>ArrayIndexOutOfBoundsException</code> wrapped in a generic message.</td>
-<td>Check the length and raise a descriptive error (<i>template 'x' for method 'y' not found</i>).</td></tr>
+<td>A missing client key, profile or default (possible because invalid resources are still used, M-06) gives an <code>ArrayIndexOutOfBoundsException</code> wrapped in a generic message.</td>
+<td>Check the length and raise a descriptive error as already done for templates (<code>selectTemplate</code>).</td></tr>
 
 <tr><td class="id">L-03</td><td><span class="sev Low">Low</span></td><td>Providers</td>
 <td class="loc"><code>CustomAuthenticator.java:977-982</code></td>
