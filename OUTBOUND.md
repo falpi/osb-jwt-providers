@@ -193,9 +193,9 @@ Attribute                                | Meaning
 1. **Context**: checks that the realm provider exists and that the Business Service has no Service Account, and detects the OSB operation.
 2. **Policies**: selects the levels that apply to the Business Service and consolidates attributes and headers.
 3. **Templates and mappings**: selects the request template of the method (and the token template for assertion), loads ResourceMappings.
-4. **Authentication**: translates the identity into `${client_id}`; reads `${client_secret}` from ClientSecrets or signs `${client_assertion}` with the key from ClientKeys.
+4. **Identity**: resolves the identity templates and translates the identity into `${client_id}`.
 5. **Authorization**: resolves and translates the resource, then resolves the scope.
-6. **Access token**: computes the cache key; on a cache miss sends the token request and caches the token.
+6. **Access token**: computes the cache key; only on a cache miss reads `${client_secret}` from ClientSecrets or signs `${client_assertion}` with the key from ClientKeys, sends the token request and caches the token. With a cached token neither credential is touched.
 7. **Headers**: sets `Authorization: Bearer <token>`, the MBean custom headers and the policy headers (secure values read from HeaderSecrets).
 8. **Logging**: debugging properties and INFO line; OSB then sends the request.
 
@@ -233,7 +233,7 @@ Variable                                   | Replaced by
 `${provider}`, `${identity}`, `${method}`, `${resource}`, `${resource_mapped}`, `${scope}`, `${secret_request}`, `${assertion_request}`, `${assertion_token}`, `${token_cache_ttl}`, `${token_cache_index}` | Consolidated policy attributes (resource and scope after resolution).
 `${token_url}`                             | Token endpoint of the selected request template.
 `${client_id}`                             | Client id of the identity.
-`${client_secret}`, `${client_assertion}`  | Credential of the selected method (use them only in request templates).
+`${client_secret}`, `${client_assertion}`  | Credential of the selected method, set only when a new token is requested (use them only in request templates).
 `${http.header.<name>}`, `${http.header.*}`| Headers of the outbound request built by the pipeline.
 `${http.content.body}`                     | Outbound payload.
 `${osb.metadata.<name>}`, `${osb.metadata.*}` | User metadata of the outbound request.

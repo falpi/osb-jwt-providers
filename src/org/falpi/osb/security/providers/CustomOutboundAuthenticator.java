@@ -62,8 +62,6 @@ import org.json.JSONObject;
 
 import org.falpi.utils.*;
 import org.falpi.SuperMap;
-import org.falpi.osb.security.providers.CustomAuthenticator.RuntimeConfig;
-import org.falpi.osb.security.providers.CustomAuthenticator.RuntimeContext;
 import org.falpi.utils.HttpUtils.*;
 import org.falpi.utils.StringUtils.*;
 import org.falpi.utils.jwt.JWTCache.*;
@@ -367,9 +365,9 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
       Logger.logMessage(LogLevel.DEBUG,"==========================================================================================");
              
       // ==================================================================================================================================
-      // Prepara autenticazione
+      // Prepara identità
       // ==================================================================================================================================   
-      prepareAuthentication();
+      prepareIdentity();
              
       // ==================================================================================================================================      
       // Prepara resource
@@ -379,8 +377,6 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
       // ==================================================================================================================================
       // Prepara access token
       // ==================================================================================================================================
-
-      // Acquisisce access token
       prepareAccessToken();
       
       // Imposta l'header di autenticazione con l'access token ottenuto
@@ -704,17 +700,15 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
    }   
    
    // ==================================================================================================================================
-   // Prepara autenticazione in base al metodo
+   // Prepara l'identita': risolve i template dell'identity e la traduce nel client_id (eseguita a ogni richiesta, serve alla cache dei token)
    // ==================================================================================================================================            
-   protected void prepareAuthentication() throws TransportException {
+   protected void prepareIdentity() throws TransportException {
       
       // Prepara logger e context
       LogManager Logger = getLogger();
-      RuntimeConfig Config = getConfig();
       RuntimeContext Context = getContext();  
        
       // Acquisisce context
-      String StrMETHOD = Context.getString("method");
       String StrPROVIDER = Context.getString("provider");
       String StrIDENTITY = Context.getString("identity");
 
@@ -727,6 +721,30 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
          // Mappa l'identita' al client_id mediante il mapping delle risorse e aggiorna context
          Context.put("client_id",translateResource((XmlObject)Context.get("resource_mappings"),StrPROVIDER,StrIDENTITY));
          Logger.logProperty(LogLevel.DEBUG,"Client ID",Context.getString("client_id"));
+
+      } catch (Exception ObjException) {
+         String StrError = "Identity mapping error ("+StrPROVIDER+":"+StrIDENTITY+")";
+         Logger.logMessage(LogLevel.ERROR,StrError,ObjException);
+         throw new TransportException(StrError);
+      }
+   }
+   
+   // ==================================================================================================================================
+   // Prepara le credenziali in base al metodo (client secret o client assertion)
+   // ==================================================================================================================================
+   protected void prepareCredentials() throws TransportException {
+      
+      // Prepara logger e context
+      LogManager Logger = getLogger();
+      RuntimeConfig Config = getConfig();
+      RuntimeContext Context = getContext();  
+       
+      // Acquisisce context
+      String StrMETHOD = Context.getString("method");
+      String StrPROVIDER = Context.getString("provider");
+      String StrIDENTITY = Context.getString("identity");
+
+      try {               
 
          // Gestisce specificità in base al metodo
          if (StrMETHOD.equals("secret")) {
@@ -852,6 +870,9 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
             Logger.logMessage(LogLevel.DEBUG,"ACCESS TOKEN REQUEST");
             Logger.logMessage(LogLevel.DEBUG,"------------------------------------------------------------------------------------------");
                       
+            // Prepara le credenziali (client secret o client assertion), necessarie solo per richiedere un nuovo token
+            prepareCredentials();
+
             // Prepara request per l'access token
             String StrRequest = prepareRequest((XmlObject)Context.get("request_template"));
    
@@ -883,6 +904,9 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
          Context.put("token",ObjCachedToken.token);      
              
       } catch (Exception ObjException) {
+
+         // Gli errori gia' gestiti (es. preparazione delle credenziali) sono propagati senza modifiche
+         if (ObjException instanceof TransportException) throw (TransportException) ObjException;
             
          String StrMessage = "";
          

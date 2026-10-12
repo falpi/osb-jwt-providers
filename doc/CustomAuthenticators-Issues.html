@@ -36,7 +36,7 @@
 <header>
   <h1>Open weaknesses, vulnerabilities and improvements</h1>
   <p>Scope: <code>UTILS/CustomAuthenticators</code> (providers, MBean definitions, build), <code>UTILS/CommonLib</code> (osb-commons) and the XML schemas of the OSB configuration project. The configuration data of a specific installation (policies, mappings, keys, secrets) is out of scope: see the sample project in <code>osb/OAUTH2</code> for a reference configuration.</p>
-  <p>Snapshot of the sources as of 2026-10-04 (package <code>osb-jwt-providers 1.0.0</code>, manifest and <code>Package Title</code> log line included). Line numbers refer to that snapshot. Items already fixed or decided during development are not listed. Secret values are never reported.</p>
+  <p>Snapshot of the sources as of 2026-10-12 (package <code>osb-jwt-providers 1.0.0</code>, manifest and <code>Package Title</code> log line included). Line numbers refer to that snapshot. Items already fixed or decided during development are not listed. Secret values are never reported.</p>
 </header>
 <main>
 
@@ -54,44 +54,44 @@
 
 <!-- ============================== HIGH ============================== -->
 <tr><td class="id">H-04</td><td><span class="sev High">High</span></td><td>Build</td>
-<td class="loc"><code>res/BeanInfoBinder-body.template:16, 22, 58-62</code>; <code>CustomAuthenticator.java:233-241</code></td>
+<td class="loc"><code>res/BeanInfoBinder-body.template:16, 22, 58-62</code>; <code>CustomAuthenticator.java:228-243</code></td>
 <td>If the reordering of the BeanInfo descriptors fails (MDF not found in the jar, XPath engine not available on JDK 17 without <code>--add-exports</code>, parse error), the exception is printed and an array of nulls is returned.</td>
 <td><code>init()</code> calls <code>getName()</code> on null, catches the NPE and throws <code>ProviderInitializationException</code> (<code>MBeanInfo load error</code>): the realm cannot be loaded and the server fails at boot.</td>
 <td>Fill the array with the unordered descriptors before reordering and replace it only on success; null checks; close the stream.</td></tr>
 
 <!-- ============================== MEDIUM ============================== -->
 <tr><td class="id">M-03</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
-<td class="loc"><code>CustomAuthenticator.java:785</code>; <code>CustomOutboundAuthenticator.java:662, 682</code></td>
+<td class="loc"><code>CustomAuthenticator.java:785</code>; <code>CustomOutboundAuthenticator.java:668, 688</code></td>
 <td>Templates are resolved inside the script text before evaluation; for <code>String</code> claims and parameters the JavaScript escaping is applied <i>before</i> resolution, so the substituted values are not escaped.</td>
 <td>A value containing <code>'</code> or <code>\</code> (a secret, a header value, a context variable) breaks the evaluation or injects code into an engine with full Java access.</td>
 <td>Escape after resolution, or better pass values as script bindings; for <code>String</code> types skip the script engine entirely and use the resolved value.</td></tr>
 
 <tr><td class="id">M-04</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:438, 490, 494, 731, 748, 908</code>; <code>CustomAuthenticator.java:659</code></td>
-<td>XPath expressions are built by concatenating values. Most come from configuration, but the secure header key (438) is resolved from templates that can contain request-derived variables (<code>${http.header.*}</code>, <code>${osb.metadata.*}</code>, <code>${osb.context.*}</code>).</td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:435, 489, 499, 515, 758, 775, 932</code>; <code>CustomAuthenticator.java:665</code></td>
+<td>XPath expressions are built by concatenating values. Most come from configuration, but the secure header key (435) is resolved from templates that can contain request-derived variables (<code>${http.header.*}</code>, <code>${osb.metadata.*}</code>, <code>${osb.context.*}</code>).</td>
 <td>A crafted value such as <code>x' or '1'='1</code> selects the first remote user of HeaderSecrets and its secret is sent to the backend; names with an apostrophe break the lookup.</td>
 <td>Compare in Java as in <code>reverseTranslateResource</code>, or reject values containing quotes; document which variables are safe in secret keys.</td></tr>
 
 <tr><td class="id">M-05</td><td><span class="sev Medium">Medium</span></td><td>Providers / osb-commons</td>
-<td class="loc"><code>CustomInboundAuthenticator.java:706-760</code>; <code>CommonLib/.../jwt/JWTCache.java:42-43, 71-74, 101-104</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.java:789-858</code>; <code>CommonLib/.../jwt/JWTCache.java:42-43, 71-74, 101-104</code></td>
 <td>A <code>kid</code> not found in cache triggers a JWKS download on every request; caches have no size limit, entries are evicted only on lookup of the same key, and tokens are used until the second of their expiry.</td>
 <td>Tokens with random <code>kid</code> (unauthenticated) turn every request into a call to the identity provider; tokens close to expiry fail at the backend.</td>
 <td>Rate-limit JWKS refreshes per URL and cache negative results briefly; add an expiry margin (30-60 s) and a size bound; meanwhile configure <code>token_cache_ttl</code> a few minutes below the token lifetime.</td></tr>
 
 <tr><td class="id">M-06</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
-<td class="loc"><code>CustomAuthenticator.java:552-649, 629-633</code>; <code>CommonLib/.../XMLUtils.java:83-96, 88</code></td>
+<td class="loc"><code>CustomAuthenticator.java:564-655, 629-633</code>; <code>CommonLib/.../XMLUtils.java:78-107, 95</code></td>
 <td>In the default mode an invalid resource is used anyway; the negative outcome is not cached, so the schema is compiled and all errors are logged at every request. Schema compilation allows downloading remote imports (<code>setCompileDownloadUrls</code>). The comment says WARN while the code logs ERROR.</td>
 <td>A wrong deployment produces a flood of log lines and CPU load and runs with partially valid policies; outbound network access from schema compilation.</td>
 <td>Cache the negative footprint (log once per version), disable URL downloads, cache the compiled <code>SchemaTypeLoader</code>; consider strict mode for security-relevant resources (inbound policies, mappings).</td></tr>
 
 <tr><td class="id">M-07</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
-<td class="loc"><code>CustomInboundAuthenticator.java:850-855</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.java:944-949</code></td>
 <td><code>${http.content.body}</code> reads the servlet input stream of the inbound request.</td>
 <td>If used in <code>LOGGING_INFO</code>, <code>DEBUGGING_PROPERTIES</code> or custom headers the proxy service receives an empty body.</td>
 <td>Remove it from inbound, or document it as diagnostic-only with a warning in the guide (done) and in the code.</td></tr>
 
 <tr><td class="id">M-08</td><td><span class="sev Medium">Medium</span></td><td>Providers / osb-commons</td>
-<td class="loc"><code>CustomInboundAuthenticator.java:860, 867-872</code>; <code>CommonLib/.../HttpUtils.java:477</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.java:950-956, 961-966</code>; <code>CommonLib/.../HttpUtils.java:504</code></td>
 <td><code>${http.header.*}</code> excludes only a header named exactly <code>Authorization</code> (case-sensitive); <code>${http.header.Authorization}</code> returns it unmasked.</td>
 <td>Basic passwords and bearer tokens can be written to logs or forwarded through custom headers.</td>
 <td>Case-insensitive exclusion; mask sensitive headers in both variables.</td></tr>
@@ -103,7 +103,7 @@
 <td>Require only <code>exp</code> or make required claims configurable; accept <code>at+jwt</code>; pass expected algorithm(s).</td></tr>
 
 <tr><td class="id">M-10</td><td><span class="sev Medium">Medium</span></td><td>osb-commons</td>
-<td class="loc"><code>CommonLib/.../StringUtils.java:149</code>; <code>SecurityUtils.java:23, 26</code>; <code>CustomAuthenticator.java:836</code></td>
+<td class="loc"><code>CommonLib/.../StringUtils.java:149</code>; <code>SecurityUtils.java:23, 26</code>; <code>CustomAuthenticator.java:848</code></td>
 <td>Request body, Basic credentials and HTTP responses are decoded with the platform default charset.</td>
 <td>Non-ASCII user names, passwords or JSON content decode differently on Windows/Linux and on JDK 18+, causing authentication failures that depend on the platform.</td>
 <td>Use UTF-8 explicitly (or the charset of the Content-Type); use commons-codec Base64.</td></tr>
@@ -115,7 +115,7 @@
 <td>Reduce visibility; keep decryption inside the provider package.</td></tr>
 
 <tr><td class="id">M-13</td><td><span class="sev Medium">Medium</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:880-886</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:913-920</code></td>
 <td><code>new JSONObject(body)</code> inside the <code>catch</code> is not protected.</td>
 <td>An error response that declares JSON but is not valid JSON raises a <code>JSONException</code> that escapes as a raw runtime exception instead of a <code>TransportException</code>.</td>
 <td>Guard it with try/catch and fall back to the plain message.</td></tr>
@@ -133,7 +133,7 @@
 <td>Check applicability against the vendor advisories; upgrade, ship one pinned version per target.</td></tr>
 
 <tr><td class="id">M-16</td><td><span class="sev Medium">Medium</span></td><td>osb-commons</td>
-<td class="loc"><code>CommonLib/.../HttpUtils.java:451-454, 459</code></td>
+<td class="loc"><code>CommonLib/.../HttpUtils.java:478-481, 485-486</code></td>
 <td>The HTTP client ignores JVM system properties and the WebLogic trust keystore and uses the default TLS context.</td>
 <td>Certificates trusted in WebLogic (e.g. an internal CA for the identity provider or the proxy) are not trusted by the provider; protocol versions depend on the JDK defaults.</td>
 <td>Explicit protocols (TLSv1.2/1.3) and a configurable trust store, or <code>useSystemProperties()</code>.</td></tr>
@@ -157,62 +157,62 @@
 <td>Do not override a <code>krb5.conf</code> already set (log a WARN with the file in use); fail at boot on conflicting configurations between instances; set <code>useSubjectCredsOnly</code> only when needed; reload the configuration only once after writing it.</td></tr>
 
 <tr><td class="id">M-21</td><td><span class="sev Medium">Medium</span></td><td>Providers / osb-commons</td>
-<td class="loc"><code>CustomAuthenticator.java:262, 785</code>; <code>CommonLib/.../JavaUtils.java:65-76</code></td>
+<td class="loc"><code>CustomAuthenticator.java:264, 785</code>; <code>CommonLib/.../JavaUtils.java:65-76</code></td>
 <td>One <code>ScriptEngine</code> per provider instance is shared by all execute threads and <code>eval(String)</code> runs on its default context and global scope; neither Nashorn nor the bundled Rhino engine declares itself multithreaded. Extends M-03.</td>
 <td>In PARALLEL mode (default) a claim, parameter or <code>DEBUGGING_ASSERTION</code> script that declares variables or functions shares them with concurrent requests (e.g. <code>iat</code>/<code>exp</code> or the debug decision taken from another request); code injected through M-03 persists in the global scope for all later evaluations.</td>
 <td>Evaluate with a fresh <code>ScriptContext</code>/<code>Bindings</code> per call (or a per-thread engine) and pass values as bindings instead of substituting them into the source.</td></tr>
 
 <tr><td class="id">M-22</td><td><span class="sev Medium">Medium</span></td><td>Providers / osb-commons</td>
-<td class="loc"><code>CommonLib/.../WLSUtils.java:160-177</code>; <code>CustomAuthenticator.java:455, 461</code></td>
+<td class="loc"><code>CommonLib/.../WLSUtils.java:160-177</code>; <code>CustomAuthenticator.java:461, 467</code></td>
 <td>Inbound custom request headers are injected by replacing the first header with exactly the same name (case-sensitive) or by appending a new one; when the resolved value is empty the header is skipped. WebLogic <code>getHeader()</code> compares names case-insensitively and returns the first match.</td>
 <td>A client that sends the header itself with a different case (e.g. <code>x-auth-user</code>), or twice, or when the provider value is empty, makes the proxy pipeline read the client value instead of the one asserted by the provider: any trust placed in injected headers can be spoofed.</td>
 <td>Remove every occurrence of the header (case-insensitive) and then add the provider value once; remove the client header also when the resolved value is empty; document which injected headers the proxies may trust.</td></tr>
 
 <tr><td class="id">M-24</td><td><span class="sev Medium">Medium</span></td><td>Providers / osb-commons</td>
-<td class="loc"><code>CustomInboundAuthenticator.java:410</code>; <code>CommonLib/.../WLSUtils.java:30-74</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.java:504</code>; <code>CommonLib/.../WLSUtils.java:30-74</code></td>
 <td>Basic credentials are checked by calling <code>EmbeddedLDAPAtnDelegate.authenticate</code> directly, outside the realm authentication framework where user lockout and authentication auditing are applied (<i>verify</i>). Extends I-05.</td>
 <td>With <code>BASIC_AUTH=ENABLE</code>, a proxy accepting <code>CIA.BASIC</code> allows password guessing on embedded LDAP users without lockout and without audit events; a user locked out in the realm may still authenticate here.</td>
 <td>Authenticate through the realm (JAAS login / principal authenticator) so that lockout and auditing apply, or document that Basic bypasses them.</td></tr>
 
 <!-- ============================== LOW ============================== -->
 <tr><td class="id">L-01</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:482-483</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:479-480</code></td>
 <td><code>JWT_POLICIES_PATH</code> is read directly from the MBean: no trim, no templates (all other paths support both); the comment explaining why is out of date.</td>
 <td>Leading/trailing spaces or a template in the path make every call fail.</td>
 <td>Use <code>Config.getString</code> + <code>replaceTemplates</code> as for the other paths.</td></tr>
 
 <tr><td class="id">L-02</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:486, 510, 748</code>; <code>CustomInboundAuthenticator.java:501, 660</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:483, 515, 775</code>; <code>CustomInboundAuthenticator.java:595, 754</code></td>
 <td>Results of <code>selectPath</code> are indexed with <code>[0]</code> without checking the length.</td>
 <td>A missing client key, profile or default (possible because invalid resources are still used, M-06) gives an <code>ArrayIndexOutOfBoundsException</code> wrapped in a generic message.</td>
 <td>Check the length and raise a descriptive error as already done for templates (<code>selectTemplate</code>).</td></tr>
 
 <tr><td class="id">L-03</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomAuthenticator.java:977-982</code></td>
+<td class="loc"><code>CustomAuthenticator.java:989-994</code></td>
 <td><code>${token.payload.&lt;attr&gt;}</code> casts the claim to <code>String</code> and does not check <code>isReady()</code> (the header variant does).</td>
 <td>Numeric claims (<code>iat</code>, <code>exp</code>) raise <code>ClassCastException</code> instead of a value.</td>
 <td>Use <code>String.valueOf</code>; check <code>isReady()</code>.</td></tr>
 
 <tr><td class="id">L-05</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomAuthenticator.java:993-995</code></td>
+<td class="loc"><code>CustomAuthenticator.java:1005-1007</code></td>
 <td>The executing WebLogic thread is renamed to the request counter and never restored.</td>
 <td>Thread dumps and stuck-thread reports show numbers instead of <code>[ACTIVE] ExecuteThread …</code>, making server diagnostics harder.</td>
 <td>Save and restore the original name, or keep the counter only in the log line.</td></tr>
 
 <tr><td class="id">L-06</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomInboundAuthenticator.java:315, 320</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.java:409, 414</code></td>
 <td><code>Basic</code> and <code>Bearer</code> prefixes are matched case-sensitively.</td>
 <td>A client sending <code>bearer &lt;token&gt;</code> (allowed by RFC 6750/7235) fails with a parsing error.</td>
 <td>Case-insensitive match.</td></tr>
 
 <tr><td class="id">L-07</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomInboundAuthenticator.java:256-257</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.java:350-351</code></td>
 <td>The JWT policy and mapping paths are mandatory even when only Basic authentication is used.</td>
 <td>A Basic-only instance cannot be configured without the OAuth2 resources.</td>
 <td>Validate them only when <code>JWT_AUTH=ENABLE</code>.</td></tr>
 
 <tr><td class="id">L-09</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:1158-1164</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:1201-1207</code></td>
 <td>The <code>${username}</code> function uses reflection on <code>_securityContext</code> without null checks.</td>
 <td>When the business service is invoked without inbound transport context (test console) the template fails with a generic error.</td>
 <td>Return "" when the context is missing.</td></tr>
@@ -236,10 +236,10 @@
 <td>Null guard; document clearing the field after use.</td></tr>
 
 <tr><td class="id">L-13</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
-<td class="loc"><code>CommonLib/.../OSBUtils.java:173, 246-253, 263-286</code></td>
-<td>The resource cache never evicts, ignores the strip-comments flag in its key, returns shared mutable objects and keeps exported service accounts (clear passwords) in memory.</td>
-<td>Heap dumps expose all secrets; a caller modifying a cached document corrupts it for everybody.</td>
-<td>Treat cached documents as read-only (or copy), include the flag in the key, evict removed resources.</td></tr>
+<td class="loc"><code>CommonLib/.../OSBUtils.java:173, 246-253, 263-285</code></td>
+<td>The resource cache never evicts, ignores the strip-comments flag in its key and keeps the text of exported service accounts (clear passwords) in memory. Every access returns a new document, so callers no longer share mutable objects.</td>
+<td>Heap dumps expose all secrets; a resource read with a different strip-comments flag is returned as first cached.</td>
+<td>Include the flag in the key, evict removed resources.</td></tr>
 
 <tr><td class="id">L-15</td><td><span class="sev Low">Low</span></td><td>osb-commons</td>
 <td class="loc"><code>CommonLib/.../logging/LogManager.java:85, 91, 145, 148, 157, 160</code>; <code>LogLevel.java:18</code></td>
@@ -272,43 +272,37 @@
 <td>Properties file for paths; stable jar name; manifest attributes; close streams; keep dump code out of releases.</td></tr>
 
 <tr><td class="id">L-21</td><td><span class="sev Low">Low</span></td><td>Providers / osb-commons</td>
-<td class="loc"><code>CommonLib/.../WLSUtils.java:40-46, 51-62</code>; <code>CommonLib/.../JavaUtils.java:59</code>; <code>CustomAuthenticator.java:251</code></td>
+<td class="loc"><code>CommonLib/.../WLSUtils.java:40-46, 51-62</code>; <code>CommonLib/.../JavaUtils.java:59</code>; <code>CustomAuthenticator.java:253</code></td>
 <td>Every provider initialization, also the outbound one (which never uses Basic) and an inbound one with Basic disabled, creates the embedded LDAP authenticator: the jar path is built from the <code>WL_HOME</code> environment variable (<code>Paths.get(null)</code> throws an NPE when it is missing) and a new <code>URLClassLoader</code>, never closed, loads a second copy of <code>wls-security-providers.jar</code> (<i>verify</i>).</td>
 <td>A server started without <code>WL_HOME</code> in its environment (start modes that bypass the domain scripts) fails at boot with <i>WebLogic context error</i>, even with an outbound-only realm; each realm initialization keeps an open jar handle and duplicate classes.</td>
 <td>Create the authenticator lazily, only in the inbound provider and only when Basic is used; locate the jar through the server class loader or <code>weblogic.home</code> instead of <code>WL_HOME</code>; close the loader.</td></tr>
 
 <tr><td class="id">L-22</td><td><span class="sev Low">Low</span></td><td>Providers / osb-commons</td>
-<td class="loc"><code>CommonLib/.../jwt/JWTCache.java:85-108</code>; <code>CustomOutboundAuthenticator.java:832-871</code></td>
+<td class="loc"><code>CommonLib/.../jwt/JWTCache.java:85-108</code>; <code>CustomOutboundAuthenticator.java:859-901</code></td>
 <td>No single-flight on access token cache misses: when a cached token expires, every concurrent request for the same cache index posts its own token request.</td>
 <td>Under load, a burst of identical client credentials requests at every token lifetime, possibly rate-limited (HTTP 429) by the identity provider and turned into backend errors (see M-14).</td>
 <td>Use a per-key lock or future (<code>computeIfAbsent</code>) for the token request; optionally refresh in advance before expiry.</td></tr>
 
 <tr><td class="id">L-23</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomInboundAuthenticator.java:458</code>; <code>CustomAuthenticator.java:923-925</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.java:552</code>; <code>CustomAuthenticator.java:935-937</code></td>
 <td>Some unchecked exceptions escape <code>assertIdentity</code> instead of <code>IdentityAssertionException</code>: a signed token whose payload is not JSON parses but <code>getPayload()</code> returns null (NPE on <code>iss</code>); a call without the OSB HTTP context (no service info) throws an NPE in <code>createContext</code>.</td>
 <td>An unauthenticated client sending <code>header.&lt;non-JSON payload&gt;.signature</code> gets a runtime exception (stack trace in the logs, possibly an error page) instead of a clean 401 (<i>verify</i> the mapping done by WebLogic/OSB).</td>
 <td>Null-check payload and context elements; convert any <code>RuntimeException</code> raised in <code>assertIdentity</code> into <code>IdentityAssertionException</code>.</td></tr>
 
 <tr><td class="id">L-24</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:437-456</code>; <code>CustomAuthenticator.java:453, 464-467</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:433-453</code>; <code>CustomAuthenticator.java:459, 470-473</code></td>
 <td>The resolved secure header secret is passed back to <code>manageCustomHeaders</code>, which applies <code>replaceTemplates</code> to it again; errors there are only logged at WARN and the request goes on without the header, bypassing the <code>TransportException</code> raised for secure headers.</td>
 <td>A secret containing <code>${...}</code> is altered or fails: the header is silently dropped and the logged exception message may contain part of the secret; failing static or policy headers are dropped in the same way.</td>
 <td>Set already-resolved values (secure headers) directly on the connection without a second template pass; make header resolution failures fatal in outbound (or configurable).</td></tr>
 
 <tr><td class="id">L-25</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:188, 198-201</code>; <code>CustomAuthenticator.java:112</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:187, 197-200</code>; <code>CustomAuthenticator.java:114</code></td>
 <td>Each per-business-service instance keeps forever the <code>ProviderContext</code> borrowed at its first call; the outbound registry is a plain <code>HashMap</code> read at every request (<code>isEmpty</code>, then <code>values().iterator().next()</code>) and written by <code>initialize</code>/<code>shutdown</code> without synchronization.</td>
 <td>After a realm re-initialization in the same JVM, business services already called keep using the old MBean, caches and engines; a shutdown during traffic can raise <code>NoSuchElementException</code> or <code>ConcurrentModificationException</code> outside <code>TransportException</code>.</td>
 <td>Read the current realm instance from the registry at every call instead of caching it; use a <code>ConcurrentHashMap</code> or a volatile reference and handle the empty case atomically.</td></tr>
 
-<tr><td class="id">L-26</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomAuthenticator.java:761-774</code></td>
-<td><code>linearizeXml</code> removes whitespace text nodes in place from fragments of the shared cached OSB resources (policies, templates) when TRACE logging is active. Extends L-13.</td>
-<td>At TRACE every request modifies documents that other threads are querying at the same time.</td>
-<td>Linearize a copy (<code>copy()</code>) or produce the text with save options only.</td></tr>
-
 <tr><td class="id">L-27</td><td><span class="sev Low">Low</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:1205, 1211, 1217</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:1248, 1254, 1260</code></td>
 <td>Outbound regex variables cast header and metadata values to <code>String</code> and call <code>toString()</code> on OSB context variables without null checks. Extends L-03.</td>
 <td>Templates using <code>${http.header.x}</code>, <code>${osb.metadata.x}</code> or <code>${osb.context.x}</code> fail with <code>ClassCastException</code> or NPE instead of returning a value or "" (generic <code>TransportException</code> when used in identity, resource or cache index).</td>
 <td>Use <code>String.valueOf</code> and return "" for missing values.</td></tr>
@@ -321,31 +315,31 @@
 
 <!-- ============================== INFO ============================== -->
 <tr><td class="id">I-01</td><td><span class="sev Info">Info</span></td><td>Providers</td>
-<td class="loc"><code>CustomInboundAuthenticator.java:580</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.java:674</code></td>
 <td>The accepted algorithm is fixed to RS256.</td>
 <td>Identity providers signing with PS256/ES256 cannot be used.</td>
 <td>Optional per-provider <code>alg</code> attribute in InboundPolicies.</td></tr>
 
 <tr><td class="id">I-02</td><td><span class="sev Info">Info</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:957-961, 1161</code>; <code>WLSUtils.java:163-165</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:1000-1002, 1204</code>; <code>WLSUtils.java:163-165</code></td>
 <td>Operation detection, <code>${username}</code> and inbound header injection rely on private fields of OSB/WebLogic classes.</td>
 <td>May break on a patch set or a new release; failures are handled (fallback to WSDL) but should be retested on each target.</td>
 <td>Keep a regression test per target.</td></tr>
 
 <tr><td class="id">I-03</td><td><span class="sev Info">Info</span></td><td>Providers</td>
-<td class="loc"><code>CustomOutboundAuthenticator.java:90, 898-932</code>; <code>CustomInboundAuthenticator.java:104, 125, 131</code>; <code>CustomAuthenticator.java:231-236</code></td>
+<td class="loc"><code>CustomOutboundAuthenticator.java:89, 941-975</code>; <code>CustomInboundAuthenticator.java:142, 176, 192</code>; <code>CustomAuthenticator.java:133, 233-238</code></td>
 <td>Unused code: <code>ENCRYPTION_HELPER</code> constant, <code>encodeProperties()</code>, inbound registry (filled in <code>initialize()</code> and cleared in <code>shutdown()</code>, never read), <code>providerDescriptor</code>.</td>
 <td>Noise for maintainers and in logs.</td>
 <td>Remove or document.</td></tr>
 
 <tr><td class="id">I-04</td><td><span class="sev Info">Info</span></td><td>Providers</td>
-<td class="loc"><code>CustomAuthenticator.java:786-791</code></td>
+<td class="loc"><code>CustomAuthenticator.java:792-797</code></td>
 <td><code>Integer</code> template values are checked against the class name returned by the script engine (<i>verify</i> on 14.1.2/Rhino, which may return <code>Double</code>); epoch values exceed the integer range in 2038.</td>
 <td>Client assertion claims <code>iat/exp</code> could fail on one target or in the future.</td>
 <td>Accept any <code>Number</code> and convert to <code>long</code>.</td></tr>
 
 <tr><td class="id">I-05</td><td><span class="sev Info">Info</span></td><td>Providers</td>
-<td class="loc"><code>osb-commons WLSUtils.getAuthenticator</code>; <code>CustomInboundAuthenticator.java:410</code></td>
+<td class="loc"><code>osb-commons WLSUtils.getAuthenticator</code>; <code>CustomInboundAuthenticator.java:504</code></td>
 <td>Basic authentication is checked against the embedded LDAP authenticator only.</td>
 <td>Users of other authenticators (LDAP, AD) cannot use Basic through this provider.</td>
 <td>Document, or use the realm login (JAAS) instead.</td></tr>
@@ -357,7 +351,7 @@
 <td>Test on 14.1.2 and document the required <code>JAVA_OPTIONS</code>.</td></tr>
 
 <tr><td class="id">I-08</td><td><span class="sev Info">Info</span></td><td>osb-commons</td>
-<td class="loc"><code>CommonLib/.../HttpUtils.java:103, 194</code></td>
+<td class="loc"><code>CommonLib/.../HttpUtils.java:105, 237</code></td>
 <td>A new HTTP client (and TLS session) is created for every call.</td>
 <td>Extra latency on every JWKS or token request when caches are disabled.</td>
 <td>A shared pooled client per configuration.</td></tr>
@@ -369,7 +363,7 @@
 <td>Shade them, or keep <code>mergeLibraries</code> per target.</td></tr>
 
 <tr><td class="id">I-10</td><td><span class="sev Info">Info</span></td><td>Providers</td>
-<td class="loc"><code>CustomInboundAuthenticator.xml:234-239</code>; <code>CustomOutboundAuthenticator.xml:209-213</code>; <code>CustomOutboundAuthenticator.java:232</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.xml:234-239</code>; <code>CustomOutboundAuthenticator.xml:209-213</code>; <code>CustomOutboundAuthenticator.java:231-232</code></td>
 <td><code>KERBEROS_CONFIGURATION</code> is declared <code>Dynamic="true"</code> but is read only at initialization; outbound <code>THREADING_MODE=SERIAL</code> synchronizes on the per-business-service instance, not on the provider.</td>
 <td>Kerberos changes look applied without restart but are not; in SERIAL mode outbound logs of different business services still interleave.</td>
 <td>Declare it non-dynamic (or re-apply it on change); synchronize outbound SERIAL on the shared realm instance or document the per-business-service scope.</td></tr>

@@ -11,7 +11,6 @@ package org.falpi.osb.security.providers;
 // Referenze
 // ##################################################################################################################################
 
-
 import com.bea.wli.sb.resources.schema.SchemaRepository;
 
 import java.util.UUID;
