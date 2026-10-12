@@ -98,16 +98,22 @@
          <xsd:selector xpath="issuers/item"/>
          <xsd:field xpath="@issuerURL"/>
       </xsd:key>
-      <!-- dichiara che ogni provider compare una sola volta nelle identities -->
-      <xsd:unique name="identityProviderNameKey">
-         <xsd:selector xpath="identities/provider"/>
-         <xsd:field xpath="@name"/>
-      </xsd:unique>
       <!-- dichiara che il nome dei profili deve essere univoco -->
       <xsd:key name="profileNameKey">
          <xsd:selector xpath="profiles/item"/>
          <xsd:field xpath="@name"/>
       </xsd:key>
+      <!-- dichiara che il nome delle identity deve essere univoco -->
+      <xsd:key name="identityNameKey">
+         <xsd:selector xpath="identities/provider/item"/>
+         <xsd:field xpath="@identity"/>
+      </xsd:key>      
+      <!-- dichiara che ogni provider compare una sola volta nelle identities -->
+      <xsd:key name="identityProviderNameKey">
+         <xsd:selector xpath="identities/provider"/>
+         <xsd:field xpath="@name"/>
+      </xsd:key>
+      
       <!-- il nome del provider nell'item degli issuers deve essere uno di quelli definiti nei provider -->
       <xsd:keyref name="issuerProviderRef" refer="providerNameKey">
          <xsd:selector xpath="issuers/item"/>

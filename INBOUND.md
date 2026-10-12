@@ -115,11 +115,11 @@ Element / attribute                        | Meaning
 `issuers/item/@identity_claim`             | Claim that carries the client_id: `appid` for Entra ID v1 tokens, `azp` for v2 tokens, `azp` or `client_id` for Keycloak.
 `profiles/item/@name`, `@audience`         | Named audience that replaces the IDP audience for the identities that reference it.
 `identities/provider/@name`                | IDP of the identities below (one block per IDP).
-`identities/provider/item/@identity`       | Logical name of the consumer; its value in ResourceMappings is the client_id. Unique per IDP.
+`identities/provider/item/@identity`       | Logical name of the consumer; its value in ResourceMappings is the client_id. Unique in the whole file, across all IDPs, like the logical names of ResourceMappings.
 `identities/provider/item/@username`       | WebLogic realm user asserted for that consumer. Must exist in the realm.
 `identities/provider/item/@profile`        | Optional profile.
 
-<p align="justify">The schema enforces unique IDP names, issuer URLs and profile names, a single identities block per IDP, unique identities per IDP and the existence of the referenced IDPs and profiles.</p>
+<p align="justify">The schema enforces unique IDP names, issuer URLs and profile names, a single identities block per IDP, identities unique in the whole file and the existence of the referenced IDPs and profiles.</p>
 
 ## Identity model
 <p align="justify">The previous project <a href="https://github.com/falpi/osb-jwt-provider">osb-jwt-provider</a> offered several identity mapping strategies (direct identity, claim identity, mapped identity through a "Service Account", combined identity through a validation script). This project adopts a single, explicit model that combines the strengths of those strategies (the identity asserter of osb-jwt-provider is still included in the package, unchanged, to ease the migration: see <a href="LEGACY.md">LEGACY.md</a>):</p>

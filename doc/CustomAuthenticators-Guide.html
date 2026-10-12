@@ -310,11 +310,11 @@
 <tr><td><code>issuers/item/@identity_claim</code></td><td>Claim that carries the client identifier: <code>appid</code> for Entra v1 tokens, <code>azp</code> for v2, <code>azp</code>/<code>client_id</code> for Keycloak.</td></tr>
 <tr><td><code>profiles/item/@name</code>, <code>@audience</code></td><td>Named audience override shared by several identities.</td></tr>
 <tr><td><code>identities/provider/@name</code></td><td>Provider of the identities below (keyref; one block per provider).</td></tr>
-<tr><td><code>identities/provider/item/@identity</code></td><td>Logical name of the client (ResourceMappings name whose value is the client_id). Unique per provider.</td></tr>
+<tr><td><code>identities/provider/item/@identity</code></td><td>Logical name of the client (ResourceMappings name whose value is the client_id). Unique in the whole file, across all providers.</td></tr>
 <tr><td><code>identities/provider/item/@username</code></td><td>WebLogic realm user asserted for that client. Must exist in an authenticator of the realm.</td></tr>
 <tr><td><code>identities/provider/item/@profile</code></td><td>Optional profile; its audience replaces the provider audience.</td></tr>
 </table>
-<p>XSD constraints: unique provider names, unique issuer URLs, a provider appears once in <code>identities</code>, unique profile names, issuer/identity providers and identity profiles must exist.</p>
+<p>XSD constraints: unique provider names, unique issuer URLs, a provider appears once in <code>identities</code>, identities unique in the whole file, unique profile names, issuer/identity providers and identity profiles must exist.</p>
 
 <h3 id="in-flow">7.4 Processing flow</h3>
 <figure><img src="images/inbound-flow.svg" alt="Inbound flow"><figcaption>Figure 9 – JWT assertion steps and the error raised by each step.</figcaption></figure>
@@ -459,7 +459,7 @@
 &lt;/item&gt;
 &lt;/clientKeys&gt;</pre>
 <ul>
-  <li><code>provider</code> + <code>identity</code> is the key of the item (unique). The client_id comes from ResourceMappings, not from this file.</li>
+  <li><code>identity</code> is the key of the item (unique in the file). The client_id comes from ResourceMappings, not from this file.</li>
   <li>Supported PEM formats: PKCS#8 (<code>BEGIN PRIVATE KEY</code>, <code>BEGIN ENCRYPTED PRIVATE KEY</code>) and traditional OpenSSL (<code>BEGIN RSA PRIVATE KEY</code>, encrypted with <code>DEK-Info</code> or not). Encrypted keys require <code>password</code>, plain keys require it empty. Only the first PEM object is read.</li>
   <li><code>alg</code>: <code>RS256</code> (the code also supports PS*/ES* but the XSD allows only RS256).</li>
   <li><code>password</code>: either clear text or <code>encrypted:&lt;base64&gt;</code> produced by the <code>ENCRYPTION_HELPER</code> attribute of the outbound provider: type the password there, save, and copy the stored value. The encryption uses the WebLogic domain key, so the value is valid only in that domain.</li>
@@ -467,7 +467,7 @@
 
 <h3 id="out-secrets">8.6 ClientSecrets and HeaderSecrets (mapping service accounts)</h3>
 <p>Both are OSB service accounts of type <i>Mapping</i> used as secure key/value stores: only <i>Remote Users</i> are read. The local user mappings can stay empty; an anonymous mapping (any remote user) avoids the editor complaint about an empty mapping list.</p>
-<figure><img src="images/client-secrets-service-account.png" alt="ClientSecrets service account"><figcaption>Figure 13 – ClientSecrets: one remote user per provider and identity.</figcaption></figure>
+<figure><img src="images/client-secrets-service-account.png" alt="ClientSecrets service account"><figcaption>Figure 13 – ClientSecrets: one remote user per identity.</figcaption></figure>
 <figure><img src="images/header-secrets-service-account.png" alt="HeaderSecrets service account"><figcaption>Figure 14 – HeaderSecrets: one remote user per header key, here composed from service name and operation.</figcaption></figure>
 <ul>
   <li><b>ClientSecrets</b>: remote user name <code>&lt;identity&gt;</code>, remote password = <code>&lt;client-secret&gt;</code>. The name is the logical identity name, compared as a whole (e.g. <code>esb-to-ProjectA</code>); no provider prefix is needed because identity names are unique in ResourceMappings across all providers (key <code>resourceNameKey</code>). ClientKeys items are likewise identified by <code>@identity</code> alone.</li>

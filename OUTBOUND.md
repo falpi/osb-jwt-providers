@@ -156,7 +156,7 @@ Attribute                                | Meaning
 - **Value types**: `String` values are taken literally after the resolution of the templates; `Integer` values are JavaScript expressions that must return an integer (e.g. `${current.epoch}+60`).
 
 ## Client Keys
-<p align="justify">The XML resource referenced by <code>JWT_CLIENT_KEYS_PATH</code> contains the private keys used by the assertion method, one per IDP and identity. The public certificate must be registered on the IDP for the same client (in Entra ID: "Certificates &amp; secrets" of the app registration; the <code>kid</code> is the certificate thumbprint).</p>
+<p align="justify">The XML resource referenced by <code>JWT_CLIENT_KEYS_PATH</code> contains the private keys used by the assertion method, one per identity (unique in the file). The public certificate must be registered on the IDP for the same client (in Entra ID: "Certificates &amp; secrets" of the app registration; the <code>kid</code> is the certificate thumbprint).</p>
 
 ```xml
 <clientKeys xsi:noNamespaceSchemaLocation="../Schemas/ClientKeys.xsd" ...>
@@ -183,7 +183,7 @@ Attribute                                | Meaning
 
 <p align="justify">Sample files: <a href="osb/OAUTH2/Security/OutboundTemplates.xml"><code>OutboundTemplates.xml</code></a>, <a href="osb/OAUTH2/Security/ClientKeys.xml"><code>ClientKeys.xml</code></a>, <a href="osb/OAUTH2/Security/ClientSecrets.sa"><code>ClientSecrets.sa</code></a> and <a href="osb/OAUTH2/Security/HeaderSecrets.sa"><code>HeaderSecrets.sa</code></a> in the sample project.</p>
 
-<p align="center"><img src="doc/images/client-secrets-service-account.png" /><br/><i>ClientSecrets: one remote user per provider and identity.</i></p>
+<p align="center"><img src="doc/images/client-secrets-service-account.png" /><br/><i>ClientSecrets: one remote user per identity.</i></p>
 
 <p align="center"><img src="doc/images/header-secrets-service-account.png" /><br/><i>HeaderSecrets: one remote user per header key, here composed from service name and operation.</i></p>
 
