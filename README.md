@@ -123,7 +123,7 @@ set POST_CLASSPATH=<WEBLOGIC_HOME>\osb\lib\servicebus-common.jar;<WEBLOGIC_HOME>
 4. When the last Proxy Service has moved, delete the old identity asserter from the realm; its classes stay in the package, unused.
 
 ## Configuration project
-<p align="justify">The policies and the secrets used at runtime are ordinary OSB resources. They can live in any OSB project; the recommended layout is a dedicated project named <code>OAUTH2</code>, organized as follows. Each MBean path parameter points to one of these resources.</p>
+<p align="justify">The policies and the secrets used at runtime are ordinary OSB resources. They can live in any OSB project; the recommended layout is a dedicated project named <code>OAUTH2</code>, organized as follows. Each MBean path parameter points to one of these resources. The path parameters of both providers default to these paths, so with this layout they can be left unchanged.</p>
 
 Resource (OSB path)                      | OSB type                  | Used by  | Content
 ---------------------------------------- | ------------------------- | -------- | -------------------------------------------------------------

@@ -50,8 +50,8 @@ Parameter                     | Default   | Description
 `REQUESTS_PROXY_PATH`         |           | OSB resource path (\*) of the "Proxy Server" used to extract proxy host and credentials.
 `BASIC_AUTH`                  | DISABLE   | Allows Basic authentication if it is among those actives in the selected token type.
 `JWT_AUTH`                    | DISABLE   | Allows JWT authentication if it is among those actives in the selected token type.
-`JWT_POLICIES_PATH`           |           | OSB resource path (\*) of the XML inbound policies (see below). Mandatory.
-`JWT_RESOURCE_MAPPING_PATH`   |           | OSB resource path (\*) of the XML resource mappings. Mandatory.
+`JWT_POLICIES_PATH`           | (\*\*\*)   | OSB resource path (\*) of the XML inbound policies (see below). Mandatory.
+`JWT_RESOURCE_MAPPING_PATH`   | (\*\*\*)   | OSB resource path (\*) of the XML resource mappings. Mandatory.
 `CUSTOM_REQUEST_HEADERS`      |           | Allows you to inject one or more custom http request headers that will pass through the OSB context. Each line must follow the format \<header\>=\<value\>.
 `CUSTOM_RESPONSE_HEADERS`     |           | Allows you to inject one or more custom http response headers that will return to client. Each line must follow the format \<header\>=\<value\>.
 `DEBUGGING_ASSERTION`         |           | May contain a javascript text that is used to filter log messages with TRACE or DEBUG level according to arbitrary criteria defined by the user. If present, it must return a Boolean object.
@@ -60,6 +60,7 @@ Parameter                     | Default   | Description
 
 (\*) OSB resources path are constructed as follows: `<project-name>/<root-folder>/.../<parent-folder>/<resource-name>`. Template variables are allowed.<br/>
 (\*\*) `Service: ${osb.service.name}, Identity: ${identity}, Client: ${http.client.host} (${http.client.addr})`<br/>
+(\*\*\*) Path of the resource in the recommended configuration project: `OAUTH2/Security/InboundPolicies` and `OAUTH2/Security/ResourceMappings` (see [Configuration project](README.md#configuration-project)).<br/>
 
 <p align="justify">The standard identity asserter attributes "Active Types" and "Base64 Decoding Required" are in the "Common" tab; leave "Base64 Decoding Required" unchecked. Below is a screenshot of the available parameters populated with sample values.</p>
 

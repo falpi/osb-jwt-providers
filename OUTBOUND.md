@@ -40,12 +40,12 @@ Parameter                     | Default   | Description
 `REQUESTS_READ_TIMEOUT`       | 5         | Response timeout of the token requests (Seconds): maximum wait for data once connected.
 `REQUESTS_PROXY_MODE`         | DIRECT    | Proxy mediation for the token requests: DIRECT (no proxy), ANONYMOUS, BASIC, NTLM, KERBEROS (NEGOTIATE).
 `REQUESTS_PROXY_PATH`         |           | OSB resource path (\*) of the "Proxy Server" used to extract proxy host and credentials.
-`JWT_POLICIES_PATH`           |           | OSB resource path of the XML outbound policies. Mandatory. Template variables are not supported in this parameter.
-`JWT_TEMPLATES_PATH`          |           | OSB resource path (\*) of the XML outbound templates. Mandatory.
-`JWT_CLIENT_KEYS_PATH`        |           | OSB resource path (\*) of the XML client keys (assertion method). Mandatory.
-`JWT_CLIENT_SECRETS_PATH`     |           | OSB resource path (\*) of the mapping "Service Account" with the client secrets (secret method). Mandatory.
-`JWT_HEADER_SECRETS_PATH`     |           | OSB resource path (\*) of the mapping "Service Account" with the values of secure headers. Mandatory.
-`JWT_RESOURCE_MAPPING_PATH`   |           | OSB resource path (\*) of the XML resource mappings. Mandatory.
+`JWT_POLICIES_PATH`           | (\*\*\*)   | OSB resource path of the XML outbound policies. Mandatory. Template variables are not supported in this parameter.
+`JWT_TEMPLATES_PATH`          | (\*\*\*)   | OSB resource path (\*) of the XML outbound templates. Mandatory.
+`JWT_CLIENT_KEYS_PATH`        | (\*\*\*)   | OSB resource path (\*) of the XML client keys (assertion method). Mandatory.
+`JWT_CLIENT_SECRETS_PATH`     | (\*\*\*)   | OSB resource path (\*) of the mapping "Service Account" with the client secrets (secret method). Mandatory.
+`JWT_HEADER_SECRETS_PATH`     | (\*\*\*)   | OSB resource path (\*) of the mapping "Service Account" with the values of secure headers. Mandatory.
+`JWT_RESOURCE_MAPPING_PATH`   | (\*\*\*)   | OSB resource path (\*) of the XML resource mappings. Mandatory.
 `CUSTOM_REQUEST_HEADERS`      |           | Static headers added to every outbound request. Each line must follow the format \<header\>=\<value\>. Headers of the policies with the same name win.
 `DEBUGGING_ASSERTION`         |           | May contain a javascript text that is used to filter log messages with TRACE or DEBUG level according to arbitrary criteria defined by the user. If present, it must return a Boolean object.
 `DEBUGGING_PROPERTIES`        |           | Allows you to send one or more string expressions to the log file. They are printed as log messages with DEBUG level.
@@ -54,6 +54,7 @@ Parameter                     | Default   | Description
 
 (\*) OSB resources path are constructed as follows: `<project-name>/<root-folder>/.../<parent-folder>/<resource-name>`. Template variables are allowed.<br/>
 (\*\*) `Service: ${osb.service.name}, Identity: ${identity}`. Please note that `${identity}` is the logical identity; add `${client_id}` to log the GUID.<br/>
+(\*\*\*) Path of the resource in the recommended configuration project: `OAUTH2/Security/<resource>`, i.e. `OutboundPolicies`, `OutboundTemplates`, `ClientKeys`, `ClientSecrets`, `HeaderSecrets` and `ResourceMappings` (see [Configuration project](README.md#configuration-project)).<br/>
 
 <p align="justify">Below is a screenshot of the available parameters populated with sample values.</p>
 

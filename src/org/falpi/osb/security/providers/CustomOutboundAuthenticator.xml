@@ -4,8 +4,8 @@
 ##################################################################################################################################
 VERSIONING
 ##################################################################################################################################
-$Revision: 2101 $
-$Date: 2026-10-04 17:16:30 +0200 (Sun, 04 Oct 2026) $
+$Revision: 2128 $
+$Date: 2026-10-13 20:00:23 +0200 (Tue, 13 Oct 2026) $
 ##################################################################################################################################
 -->
 <MBeanType
@@ -137,6 +137,7 @@ $Date: 2026-10-04 17:16:30 +0200 (Sun, 04 Oct 2026) $
     <MBeanAttribute  
   Name 		= "JWT_POLICIES_PATH"
   Type 		= "java.lang.String"
+  Default 	= "&quot;OAUTH2/Security/OutboundPolicies&quot;"
   Description   = "OSB path for the outbound security policies XML"
   Writeable 	= "true"
   Dynamic       = "true"
@@ -145,6 +146,7 @@ $Date: 2026-10-04 17:16:30 +0200 (Sun, 04 Oct 2026) $
     <MBeanAttribute  
   Name 		= "JWT_TEMPLATES_PATH"
   Type 		= "java.lang.String"
+  Default 	= "&quot;OAUTH2/Security/OutboundTemplates&quot;"
   Description   = "OSB path for token templates XML"
   Writeable 	= "true"
   Dynamic       = "true"
@@ -153,6 +155,7 @@ $Date: 2026-10-04 17:16:30 +0200 (Sun, 04 Oct 2026) $
     <MBeanAttribute  
   Name 		= "JWT_CLIENT_KEYS_PATH"
   Type 		= "java.lang.String"
+  Default 	= "&quot;OAUTH2/Security/ClientKeys&quot;"
   Description   = "OSB path for the XML resource with CLIENT_ASSERTION identities"
   Writeable 	= "true"
   Dynamic       = "true"
@@ -161,6 +164,7 @@ $Date: 2026-10-04 17:16:30 +0200 (Sun, 04 Oct 2026) $
     <MBeanAttribute  
   Name 		= "JWT_CLIENT_SECRETS_PATH"
   Type 		= "java.lang.String"
+  Default 	= "&quot;OAUTH2/Security/ClientSecrets&quot;"
   Description   = "OSB path for the mapping service account with CLIENT_SECRET identities"
   Writeable 	= "true"
   Dynamic       = "true"
@@ -169,6 +173,7 @@ $Date: 2026-10-04 17:16:30 +0200 (Sun, 04 Oct 2026) $
       <MBeanAttribute  
   Name 		= "JWT_HEADER_SECRETS_PATH"
   Type 		= "java.lang.String"
+  Default 	= "&quot;OAUTH2/Security/HeaderSecrets&quot;"
   Description   = "OSB path for the mapping service account with secure header values"
   Writeable 	= "true"
   Dynamic       = "true"
@@ -177,6 +182,7 @@ $Date: 2026-10-04 17:16:30 +0200 (Sun, 04 Oct 2026) $
     <MBeanAttribute  
   Name 		= "JWT_RESOURCE_MAPPING_PATH"
   Type 		= "java.lang.String"
+  Default 	= "&quot;OAUTH2/Security/ResourceMappings&quot;"
   Description   = "OSB mapping service account used to translate resource identifiers"
   Writeable 	= "true"
   Dynamic       = "true"

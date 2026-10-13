@@ -218,7 +218,7 @@
 <td>Return "" when the context is missing.</td></tr>
 
 <tr><td class="id">L-10</td><td><span class="sev Low">Low</span></td><td>MBean</td>
-<td class="loc"><code>CustomInboundAuthenticator.xml:196</code>; <code>CustomOutboundAuthenticator.xml:64, 180, 203</code>; <code>CustomInboundAuthenticator.xml:228</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.xml:198</code>; <code>CustomOutboundAuthenticator.xml:64, 186, 209</code>; <code>CustomInboundAuthenticator.xml:230</code></td>
 <td>Out-of-date or wrong texts: <code>JWT_RESOURCE_MAPPING_PATH</code> described as a service account (it is an XML resource); typos "espressions", "Minimum level log messages".</td>
 <td>Misleading console help.</td>
 <td>Fix the descriptions.</td></tr>
@@ -363,7 +363,7 @@
 <td>Shade them, or keep <code>mergeLibraries</code> per target.</td></tr>
 
 <tr><td class="id">I-10</td><td><span class="sev Info">Info</span></td><td>Providers</td>
-<td class="loc"><code>CustomInboundAuthenticator.xml:234-239</code>; <code>CustomOutboundAuthenticator.xml:209-213</code>; <code>CustomOutboundAuthenticator.java:231-232</code></td>
+<td class="loc"><code>CustomInboundAuthenticator.xml:236-241</code>; <code>CustomOutboundAuthenticator.xml:215-219</code>; <code>CustomOutboundAuthenticator.java:231-232</code></td>
 <td><code>KERBEROS_CONFIGURATION</code> is declared <code>Dynamic="true"</code> but is read only at initialization; outbound <code>THREADING_MODE=SERIAL</code> synchronizes on the per-business-service instance, not on the provider.</td>
 <td>Kerberos changes look applied without restart but are not; in SERIAL mode outbound logs of different business services still interleave.</td>
 <td>Declare it non-dynamic (or re-apply it on change); synchronize outbound SERIAL on the shared realm instance or document the per-business-service scope.</td></tr>

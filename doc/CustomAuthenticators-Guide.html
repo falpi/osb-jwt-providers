@@ -177,7 +177,7 @@
 
 <!-- ================================================================================================ -->
 <h2 id="config-project">4. Configuration project and resources</h2>
-<p>The resources consumed at runtime are ordinary OSB resources. The recommended layout, used by the sample project <code>osb/OAUTH2</code>:</p>
+<p>The resources consumed at runtime are ordinary OSB resources. The recommended layout, used by the sample project <code>osb/OAUTH2</code> and by the defaults of the MBean path attributes (which can therefore be left unchanged when the layout is adopted):</p>
 <table>
 <tr><th>Resource (OSB path)</th><th>OSB type</th><th>Used by</th><th>Content</th></tr>
 <tr><td><code>OAUTH2/Security/InboundPolicies</code></td><td>XML</td><td>Inbound</td><td>Issuers, providers (JWKS, audience, key cache TTL), profiles, enabled identities.</td></tr>
@@ -257,8 +257,8 @@
 <tr><td><code>REQUESTS_PROXY_PATH</code></td><td>OSB path</td><td>–</td><td>Proxy Server resource (<code>System/Proxy Servers/&lt;name&gt;</code>); mandatory unless DIRECT. Host, port and credentials are read from it.</td></tr>
 <tr><td><code>BASIC_AUTH</code></td><td>ENABLE, DISABLE</td><td>DISABLE</td><td>Allows Basic authentication when the token type includes it.</td></tr>
 <tr><td><code>JWT_AUTH</code></td><td>ENABLE, DISABLE</td><td>DISABLE</td><td>Allows JWT authentication when the token type includes it.</td></tr>
-<tr><td><code>JWT_POLICIES_PATH</code></td><td>OSB path, templates</td><td>–</td><td>XML resource with the inbound policies. Mandatory.</td></tr>
-<tr><td><code>JWT_RESOURCE_MAPPING_PATH</code></td><td>OSB path, templates</td><td>–</td><td>XML resource with the resource mappings. Mandatory.</td></tr>
+<tr><td><code>JWT_POLICIES_PATH</code></td><td>OSB path, templates</td><td><code>OAUTH2/Security/InboundPolicies</code></td><td>XML resource with the inbound policies. Mandatory.</td></tr>
+<tr><td><code>JWT_RESOURCE_MAPPING_PATH</code></td><td>OSB path, templates</td><td><code>OAUTH2/Security/ResourceMappings</code></td><td>XML resource with the resource mappings. Mandatory.</td></tr>
 <tr><td><code>CUSTOM_REQUEST_HEADERS</code></td><td>Properties <code>name=value</code></td><td>–</td><td>Headers added to the inbound request seen by the pipeline (templates allowed, empty results skipped).</td></tr>
 <tr><td><code>CUSTOM_RESPONSE_HEADERS</code></td><td>Properties <code>name=value</code></td><td>–</td><td>Headers added to the response returned to the consumer.</td></tr>
 <tr><td><code>DEBUGGING_ASSERTION</code></td><td>JavaScript returning Boolean</td><td>–</td><td>When it returns false the level of this request is lowered to INFO (filters debug output to specific requests).</td></tr>
@@ -354,12 +354,12 @@
 <tr><td><code>LOGGING_LINES</code>, <code>LOGGING_LEVEL</code>, <code>THREADING_MODE</code></td><td colspan="2">as inbound</td><td>See §7.2.</td></tr>
 <tr><td><code>LOGGING_INFO</code></td><td>String with templates</td><td><code>Service: ${osb.service.name}, Identity: ${identity}</code></td><td>Summary line logged at INFO as <code>Outbound (JWT) =&gt; …</code>. <code>${identity}</code> is the logical identity; add <code>${client_id}</code> to log the GUID.</td></tr>
 <tr><td><code>REQUESTS_SSL_VERIFY</code>, <code>REQUESTS_CONN_TIMEOUT</code>, <code>REQUESTS_READ_TIMEOUT</code>, <code>REQUESTS_PROXY_MODE</code>, <code>REQUESTS_PROXY_PATH</code></td><td colspan="2">as inbound</td><td>Applied to the token requests sent to the identity provider.</td></tr>
-<tr><td><code>JWT_POLICIES_PATH</code></td><td>OSB path</td><td>–</td><td>OutboundPolicies resource. Mandatory. Read verbatim (no templates).</td></tr>
-<tr><td><code>JWT_TEMPLATES_PATH</code></td><td>OSB path, templates</td><td>–</td><td>OutboundTemplates resource. Mandatory.</td></tr>
-<tr><td><code>JWT_CLIENT_KEYS_PATH</code></td><td>OSB path, templates</td><td>–</td><td>ClientKeys resource (assertion method). Mandatory.</td></tr>
-<tr><td><code>JWT_CLIENT_SECRETS_PATH</code></td><td>OSB path, templates</td><td>–</td><td>Mapping service account with the client secrets (secret method). Mandatory.</td></tr>
-<tr><td><code>JWT_HEADER_SECRETS_PATH</code></td><td>OSB path, templates</td><td>–</td><td>Mapping service account with the values of secure headers. Mandatory.</td></tr>
-<tr><td><code>JWT_RESOURCE_MAPPING_PATH</code></td><td>OSB path, templates</td><td>–</td><td>ResourceMappings resource. Mandatory.</td></tr>
+<tr><td><code>JWT_POLICIES_PATH</code></td><td>OSB path</td><td><code>OAUTH2/Security/OutboundPolicies</code></td><td>OutboundPolicies resource. Mandatory. Read verbatim (no templates).</td></tr>
+<tr><td><code>JWT_TEMPLATES_PATH</code></td><td>OSB path, templates</td><td><code>OAUTH2/Security/OutboundTemplates</code></td><td>OutboundTemplates resource. Mandatory.</td></tr>
+<tr><td><code>JWT_CLIENT_KEYS_PATH</code></td><td>OSB path, templates</td><td><code>OAUTH2/Security/ClientKeys</code></td><td>ClientKeys resource (assertion method). Mandatory.</td></tr>
+<tr><td><code>JWT_CLIENT_SECRETS_PATH</code></td><td>OSB path, templates</td><td><code>OAUTH2/Security/ClientSecrets</code></td><td>Mapping service account with the client secrets (secret method). Mandatory.</td></tr>
+<tr><td><code>JWT_HEADER_SECRETS_PATH</code></td><td>OSB path, templates</td><td><code>OAUTH2/Security/HeaderSecrets</code></td><td>Mapping service account with the values of secure headers. Mandatory.</td></tr>
+<tr><td><code>JWT_RESOURCE_MAPPING_PATH</code></td><td>OSB path, templates</td><td><code>OAUTH2/Security/ResourceMappings</code></td><td>ResourceMappings resource. Mandatory.</td></tr>
 <tr><td><code>CUSTOM_REQUEST_HEADERS</code></td><td>Properties <code>name=value</code></td><td>–</td><td>Static headers added to every outbound request; policy headers with the same name win.</td></tr>
 <tr><td><code>DEBUGGING_ASSERTION</code>, <code>DEBUGGING_PROPERTIES</code>, <code>KERBEROS_CONFIGURATION</code></td><td colspan="2">as inbound</td><td>See §7.2.</td></tr>
 <tr><td><code>ENCRYPTION_HELPER</code></td><td>String</td><td>–</td><td>Console helper: the value typed here is stored encrypted with the domain key as <code>encrypted:&lt;base64&gt;</code>; copy it into <code>ClientKeys.xml</code> (see §8.5). Never read at runtime.</td></tr>
