@@ -19,8 +19,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.net.HttpURLConnection;
-import java.nio.charset.StandardCharsets;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import javax.security.auth.login.AppConfigurationEntry;
 
@@ -30,6 +30,8 @@ import weblogic.security.spi.PrincipalValidator;
 import weblogic.security.spi.SecurityServices;
 import weblogic.security.spi.AuthenticationProviderV2;
 import weblogic.security.spi.ProviderInitializationException;
+import weblogic.security.SubjectUtils;
+import weblogic.security.acl.internal.AuthenticatedSubject;
 import weblogic.wsee.wsdl.WsdlBinding;
 import weblogic.wsee.wsdl.WsdlBindingOperation;
 import weblogic.wsee.wsdl.soap11.SoapBinding;
@@ -55,6 +57,7 @@ import com.bea.wli.sb.transports.TransportSender;
 import com.bea.wli.sb.transports.http.OutboundAuthentication;
 import com.bea.wli.sb.transports.http.HttpUrlConnectionFactory;
 import com.bea.wli.sb.services.dispatcher.security.SecurityContext;
+import com.bea.wli.sb.services.dispatcher.security.SecurityContext.SubjectContext;
 
 import org.apache.xmlbeans.XmlObject;
 
@@ -1200,9 +1203,18 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
       // ----------------------------------------------------------------------------------------------------------------------------------
       Context.put("username",new TemplateFunction() {
          public String apply(String StrVariableName,SuperMap ObjContext) throws Exception {
-            TransportSender ObjSender = (TransportSender) ObjContext.get("osb.sender");            
-            SecurityContext ObjSecurityContext = (SecurityContext) JavaUtils.getField(ObjSender.getCredentialCallback(),"_securityContext");                     
-            return ObjSecurityContext.getTransportContext().getUsernamePassword().getUsername();
+
+            // Acquisisce il contesto di sicurezza della richiesta
+            TransportSender ObjSender = (TransportSender) ObjContext.get("osb.sender");         
+            Object ObjCallback = ObjSender.getCredentialCallback();
+            SecurityContext ObjSecurityContext = (ObjCallback==null)?(null):((SecurityContext) JavaUtils.getField(ObjCallback,"_securityContext"));
+            SubjectContext ObjSubjectSubject = (ObjSecurityContext==null)?(null):(ObjSecurityContext.getTransportContext());
+            AuthenticatedSubject ObjSubject = (ObjSubjectSubject==null)?(null):(ObjSubjectSubject.getSubject());
+            
+            // Ricava utente autenticato a livello di trasporto, dal subject (basic del proxy o token asserito dal provider inbound)
+            if ((ObjSubject==null)||(SubjectUtils.isUserAnonymous(ObjSubject))) return "";
+            String StrUsername = SubjectUtils.getUsername(ObjSubject);            
+            return (StrUsername==null)?(""):(StrUsername);
          }
       });  
       
@@ -1258,6 +1270,17 @@ public class CustomOutboundAuthenticator extends CustomAuthenticator implements 
          public String apply(String StrVariableName,SuperMap ObjContext) throws Exception {
             MessageContext ObjMessageContext = (MessageContext) ObjContext.get("osb.context");
             return (ObjMessageContext==null)?(""):(ObjMessageContext.getVariableValue(StrVariableName.split("\\.")[2]).toString());
+         }
+         // Con il selettore applica l'espressione xpath al valore XML della variabile e ne restituisce il valore testuale del primo nodo
+         // selezionato (es. ${osb.context.header#./*:UniqueID}); stringa vuota se il contesto o la variabile mancano o nessun nodo e' selezionato
+         public String apply(String StrVariableName,String StrSelector,SuperMap ObjContext) throws Exception {
+            if (StrSelector==null) return apply(StrVariableName,ObjContext);
+            MessageContext ObjMessageContext = (MessageContext) ObjContext.get("osb.context");
+            if (ObjMessageContext==null) return "";
+            Object ObjValue = ObjMessageContext.getVariableValue(StrVariableName.split("\\.")[2]);
+            if (ObjValue==null) return "";
+            if (!(ObjValue instanceof XmlObject)) throw new Exception("xpath selector requires an XML variable ('"+StrVariableName+"')");
+            return XMLUtils.getTextValue((XmlObject) ObjValue,StrSelector);
          }
       });
       // ----------------------------------------------------------------------------------------------------------------------------------

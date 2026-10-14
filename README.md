@@ -202,6 +202,8 @@ Parameter                     | Description
 ## Template Variables
 <p align="justify">All string configuration parameters, policies and templates support the use of substitution variables to create configurations that can dynamically adapt to the runtime state. Variable names are dot-separated segments of letters, "_" and "-" (digits are not allowed); a variable that does not exist raises an error. The following variables are available in both providers; the variables specific to each provider are listed in the respective documents.</p>
 
+<p align="justify"><b>Selectors.</b> A variable can be followed by <code>#</code> and a selector, <code>${&lt;variable&gt;#&lt;selector&gt;}</code>, to extract part of its value: everything after the first <code>#</code> up to the closing brace is the selector, and a <code>}</code> inside it is allowed only within quotes (<code>'...'</code> or <code>"..."</code>). Only the variables that declare a selector accept it, the others raise an error. Currently the only one is <code>${osb.context.&lt;variable&gt;}</code> of the outbound provider, whose selector is an XPath expression (see <a href="OUTBOUND.md#xpath-selector-on-pipeline-variables">OUTBOUND.md</a>).</p>
+
 Variable                      | Replaced by
 ----------------------------- | ------------------------------------------------------------------------------------
 `${uuid}`                     | Random UUID generated for the request.

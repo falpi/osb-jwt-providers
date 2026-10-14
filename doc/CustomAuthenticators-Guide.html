@@ -141,7 +141,7 @@
   <li>a lifecycle managed by the server (<code>initialize</code> at boot, <code>shutdown</code>) and access to realm and domain services (realm, domain and server names, domain encryption used by <code>ENCRYPTION_HELPER</code>);</li>
   <li>one instance per server that holds the caches shared by the per-business-service instances (access tokens, signing keys, OSB resources).</li>
 </ul>
-<p>The provider never takes part in authentication: <code>getLoginModuleConfiguration()</code>, <code>getAssertionModuleConfiguration()</code>, <code>getIdentityAsserter()</code> and <code>getPrincipalValidator()</code> return <code>null</code> (<code>CustomOutboundAuthenticator.java:148-166</code>), so its position and control flag in the realm are irrelevant. The instances created by OSB for each business service borrow parameters and caches from the realm instance through a static registry, which is why exactly one outbound provider is allowed (§12).</p>
+<p>The provider never takes part in authentication: <code>getLoginModuleConfiguration()</code>, <code>getAssertionModuleConfiguration()</code>, <code>getIdentityAsserter()</code> and <code>getPrincipalValidator()</code> return <code>null</code> (<code>CustomOutboundAuthenticator.java:151-169</code>), so its position and control flag in the realm are irrelevant. The instances created by OSB for each business service borrow parameters and caches from the realm instance through a static registry, which is why exactly one outbound provider is allowed (§12).</p>
 
 <!-- ================================================================================================ -->
 <h2 id="install">3. Installation</h2>
@@ -512,7 +512,8 @@
 <ul>
   <li>Names are dot-separated segments of letters, <code>_</code> and <code>-</code>, optionally ending with <code>.*</code>. <b>Digits are not allowed</b>: <code>${claim1}</code> is a syntax error.</li>
   <li>The value must be a string or a function; a missing variable (or one holding an object or null) raises <i>invalid template variable</i>. There is no default value syntax.</li>
-  <li>All occurrences are replaced; replacement is not recursive.</li>
+  <li>A variable can be followed by <code>#</code> and a selector, <code>${&lt;name&gt;#&lt;selector&gt;}</code>: the selector is everything after the first <code>#</code> (a <code>}</code> is allowed only inside <code>'...'</code> or <code>"..."</code>) and is passed to the function of the variable through <code>TemplateFunction.apply(name, selector, context)</code>. The default implementation of that method rejects any selector, so only the variables that override it accept one (today the outbound <code>${osb.context.&lt;variable&gt;}</code>, §9.3); a selector on a string variable is an error.</li>
+  <li>All occurrences are replaced. The replacement works on the text being built, so a value that contains <code>${...}</code> can be expanded by a later match (see issue L-16).</li>
 </ul>
 <h3>9.1 Common variables</h3>
 <table>
@@ -552,9 +553,11 @@
 <tr><td><code>${http.header.&lt;name&gt;}</code>, <code>${http.header.*}</code></td><td>Headers of the outbound request built by the pipeline.</td></tr>
 <tr><td><code>${osb.metadata.&lt;name&gt;}</code>, <code>${osb.metadata.*}</code></td><td>User metadata of the outbound request.</td></tr>
 <tr><td><code>${osb.context.&lt;variable&gt;}</code>, <code>${osb.context.*}</code></td><td>Pipeline context variables (empty when there is no pipeline).</td></tr>
+<tr><td><code>${osb.context.&lt;variable&gt;#&lt;xpath&gt;}</code></td><td>Text value of the first node selected by the XPath expression on the XML value of the variable (see below).</td></tr>
 <tr><td><code>${http.content.body}</code></td><td>Outbound payload.</td></tr>
-<tr><td><code>${username}</code></td><td>User of the inbound transport security context (pipeline calls only).</td></tr>
+<tr><td><code>${username}</code></td><td>Realm user authenticated by the proxy service at transport level (Basic authentication of the proxy or token asserted by an inbound provider); read with <code>SubjectUtils.getUsername</code> from the transport subject of the OSB security context; empty when not available (no pipeline, anonymous call, test console).</td></tr>
 </table>
+<p><b>XPath selector.</b> <code>${osb.context.header#./*:UniqueID}</code> applies the expression with <code>XMLUtils.getTextValue</code> to the value of the variable (<code>header</code> = <code>soap:Header</code> element, <code>body</code> = <code>soap:Body</code> element) and returns the text of the first selected node; the result is empty when there is no pipeline, the variable is missing or nothing is selected (an empty custom header is not sent), and a non-XML variable raises an error. The expression runs on the XQuery engine of WebLogic: pipeline namespace prefixes are not known, so use <code>*:</code> wildcards or a prolog such as <code>declare namespace ns='urn:example'; ./ns:UniqueID</code> (with a prolog address the variable with <code>./</code>, <code>$this</code> is not declared). The documents of the message context belong to the request, so the cursors used by the selection do not accumulate (§12). Values taken from the message are client controlled: use them in headers and logs, not in scripts or secure header keys (issues M-03, M-04, L-16).</p>
 
 <!-- ================================================================================================ -->
 <h2 id="scripting">10. Scripting</h2>
@@ -697,28 +700,28 @@ ${current.epoch}+300</pre>
 <h4>CustomOutboundAuthenticator</h4>
 <table class="wide">
 <tr><th>Member</th><th>Line</th><th>Purpose</th></tr>
-<tr><td><code>initialize(...)</code></td><td>118</td><td><code>init</code>, single-instance check (<code>ProviderInitializationException</code> naming both providers), registration.</td></tr>
-<tr><td><code>shutdown()</code></td><td>137</td><td><code>done</code> and removal of the realm instance from the registry.</td></tr>
-<tr><td><code>doOutboundAuthentication(...)</code></td><td>172</td><td>Entry point called by the OSB HTTP transport; registry and service account checks, context, serial or parallel implementation, thread cleaned in <code>finally</code>.</td></tr>
-<tr><td><code>doOutboundAuthenticationAsynchImpl</code></td><td>238</td><td>Config log and checks, policies, authentication, headers, INFO line.</td></tr>
-<tr><td><code>manageJwtAuthOutbound</code></td><td>356</td><td>Authentication, authorization, access token, Authorization header.</td></tr>
-<tr><td><code>manageCustomHeaders()</code></td><td>391</td><td>Merges MBean and policy headers, translates secure headers.</td></tr>
-<tr><td><code>preparePolicies()</code></td><td>459</td><td>Levels, attributes, headers, templates, mappings.</td></tr>
-<tr><td><code>prepareClaims</code>, <code>prepareRequest</code></td><td>656, 676</td><td>Evaluate token and request templates.</td></tr>
-<tr><td><code>prepareIdentity()</code></td><td>705</td><td>Identity templates and client_id (every request).</td></tr>
-<tr><td><code>prepareCredentials()</code></td><td>735</td><td>Client secret or client assertion (only on a token cache miss).</td></tr>
-<tr><td><code>prepareAuthorization()</code></td><td>798</td><td>Resource and scope.</td></tr>
-<tr><td><code>prepareAccessToken()</code></td><td>847</td><td>Token cache and token request.</td></tr>
-<tr><td><code>selectTemplate(XmlObject,String,String)</code></td><td>931</td><td>Selects a token or request template by name; error if missing or not unique.</td></tr>
-<tr><td><code>detectOperation(...)</code></td><td>980</td><td>§8.8.</td></tr>
-<tr><td><code>createConfig()</code>, <code>createContext(...)</code></td><td>1126, 1167</td><td>MBean snapshot; outbound variables.</td></tr>
+<tr><td><code>initialize(...)</code></td><td>121</td><td><code>init</code>, single-instance check (<code>ProviderInitializationException</code> naming both providers), registration.</td></tr>
+<tr><td><code>shutdown()</code></td><td>140</td><td><code>done</code> and removal of the realm instance from the registry.</td></tr>
+<tr><td><code>doOutboundAuthentication(...)</code></td><td>175</td><td>Entry point called by the OSB HTTP transport; registry and service account checks, context, serial or parallel implementation, thread cleaned in <code>finally</code>.</td></tr>
+<tr><td><code>doOutboundAuthenticationAsynchImpl</code></td><td>241</td><td>Config log and checks, policies, authentication, headers, INFO line.</td></tr>
+<tr><td><code>manageJwtAuthOutbound</code></td><td>359</td><td>Authentication, authorization, access token, Authorization header.</td></tr>
+<tr><td><code>manageCustomHeaders()</code></td><td>394</td><td>Merges MBean and policy headers, translates secure headers.</td></tr>
+<tr><td><code>preparePolicies()</code></td><td>462</td><td>Levels, attributes, headers, templates, mappings.</td></tr>
+<tr><td><code>prepareClaims</code>, <code>prepareRequest</code></td><td>659, 679</td><td>Evaluate token and request templates.</td></tr>
+<tr><td><code>prepareIdentity()</code></td><td>708</td><td>Identity templates and client_id (every request).</td></tr>
+<tr><td><code>prepareCredentials()</code></td><td>738</td><td>Client secret or client assertion (only on a token cache miss).</td></tr>
+<tr><td><code>prepareAuthorization()</code></td><td>801</td><td>Resource and scope.</td></tr>
+<tr><td><code>prepareAccessToken()</code></td><td>850</td><td>Token cache and token request.</td></tr>
+<tr><td><code>selectTemplate(XmlObject,String,String)</code></td><td>934</td><td>Selects a token or request template by name; error if missing or not unique.</td></tr>
+<tr><td><code>detectOperation(...)</code></td><td>983</td><td>§8.8.</td></tr>
+<tr><td><code>createConfig()</code>, <code>createContext(...)</code></td><td>1129, 1170</td><td>MBean snapshot; outbound variables.</td></tr>
 </table>
 
 <h3 id="dev-commons">13.3 osb-commons reference</h3>
 <table class="wide">
 <tr><th>Class</th><th>Main members</th><th>Notes</th></tr>
 <tr><td><code>org.falpi.SuperMap</code>, <code>RegexMap</code></td><td><code>getString</code>, <code>getInteger</code>, <code>getStringArray</code>, <code>getProperties</code>, <code>putRegex</code>, <code>getRegex</code></td><td>LinkedHashMap with typed getters and a side map whose keys are regular expressions (used for parametric template variables). <code>getString(key)</code> returns "" for missing keys, <code>getString(key, default)</code> the given default.</td></tr>
-<tr><td><code>StringUtils</code></td><td><code>replaceTemplates</code>, <code>TemplateFunction</code>, <code>join</code>, <code>padLeft/Right</code>, <code>repeat</code>, <code>toString</code>, <code>escapeJavaScript</code></td><td>Template engine (§9); <code>escapeJavaScript</code> (same rules as commons-lang 2 <code>StringEscapeUtils.escapeJavaScript</code>) quotes the <code>String</code> values of the outbound templates without depending on the commons-lang version shipped with WebLogic (2.x on 12.2.1, 3.x on 14.1.2).</td></tr>
+<tr><td><code>StringUtils</code></td><td><code>replaceTemplates</code>, <code>TemplateFunction</code> (with the selector variant of <code>apply</code>), <code>join</code>, <code>padLeft/Right</code>, <code>repeat</code>, <code>toString</code>, <code>escapeJavaScript</code></td><td>Template engine (§9); <code>escapeJavaScript</code> (same rules as commons-lang 2 <code>StringEscapeUtils.escapeJavaScript</code>) quotes the <code>String</code> values of the outbound templates without depending on the commons-lang version shipped with WebLogic (2.x on 12.2.1, 3.x on 14.1.2).</td></tr>
 <tr><td><code>logging.LogManager</code>, <code>LogLevel</code></td><td><code>logMessage</code>, <code>logProperty</code>, <code>formatProperties</code>, <code>checkLogLevel</code>, <code>setLogLevel</code>, <code>setLogLines</code>, <code>setPadLength</code></td><td>Format of §11; output on <code>System.out</code>.</td></tr>
 <tr><td><code>HttpUtils</code></td><td><code>fetch</code>, <code>HttpStatusException</code>, <code>buildClient</code>, <code>buildRequest</code>, <code>getHeaders</code></td><td>Apache HttpClient 4.5; host and proxy authentication ANONYMOUS/BASIC/NTLM/KERBEROS (unknown modes raise an exception); Kerberos login contexts always released in <code>finally</code>; non-2xx status → <code>HttpStatusException</code> with status, content type and body (one line, max 2048 chars); response and client closed in <code>finally</code>.</td></tr>
 <tr><td><code>OSBUtils</code></td><td><code>getResource</code>, <code>getResourceCached</code>, <code>getResourceMetadata</code>, <code>getResourceRef</code>, <code>buildRequestHeaders</code>, <code>buildContextVariables</code>, <code>MessageContext</code> helpers</td><td>Service accounts are exported in clear through the OSB config API. <code>getResourceCached</code> caches the resource text and returns a new document at every access (§12).</td></tr>
@@ -768,7 +771,7 @@ ${current.epoch}+300</pre>
 <h3 id="dev-extend">13.7 Extending the providers</h3>
 <ul>
   <li><b>New MBean attribute</b>: add <code>&lt;MBeanAttribute&gt;</code> to the MDF (position = console order), a constant and a <code>Config.put</code> in <code>createConfig()</code>, log it in the CONFIGURATION block, validate it with <code>validateParameter</code> if mandatory. Rebuild with MBeanMaker (the interface getter is generated).</li>
-  <li><b>New outbound policy attribute</b>: add it to <code>abstractType</code> (optional) and <code>defaultType</code> (required) of <code>OutboundPolicies.xsd</code> and to the list in <code>preparePolicies()</code> (line 543): it becomes a context variable automatically.</li>
+  <li><b>New outbound policy attribute</b>: add it to <code>abstractType</code> (optional) and <code>defaultType</code> (required) of <code>OutboundPolicies.xsd</code> and to the list in <code>preparePolicies()</code> (line 546): it becomes a context variable automatically.</li>
   <li><b>New template variable</b>: <code>Context.put(name, String)</code> for static values, <code>Context.put(name, TemplateFunction)</code> for lazy values, <code>Context.putRegex(regex, TemplateFunction)</code> for parametric names. Names cannot contain digits.</li>
   <li><b>New identity provider</b>: no code change; add provider, issuers and identities (inbound), request templates and mappings (outbound).</li>
 </ul>
