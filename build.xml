@@ -2,8 +2,8 @@
 ##################################################################################################################################
 VERSIONING
 ##################################################################################################################################
-$Revision: 2093 $
-$Date: 2026-10-04 13:30:39 +0200 (Sun, 04 Oct 2026) $
+$Revision: 2132 $
+$Date: 2026-10-15 15:13:36 +0200 (Thu, 15 Oct 2026) $
 ##################################################################################################################################
 -->
 <project name="Build" default="all" basedir="." xmlns:if="ant:if" xmlns:unless="ant:unless">
@@ -302,6 +302,7 @@ $Date: 2026-10-04 13:30:39 +0200 (Sun, 04 Oct 2026) $
        <mbean-version file="${sourceDir}/${packageDir}/CustomIdentityAsserter.xml" property="legacyVersion"/>
        <mbean-version file="${sourceDir}/${packageDir}/CustomInboundAuthenticator.xml" property="inboundVersion"/>
        <mbean-version file="${sourceDir}/${packageDir}/CustomOutboundAuthenticator.xml" property="outboundVersion"/>
+       
        <echo message="Legacy version ....: ${legacyVersion}"/>
        <echo message="Inbound version ...: ${inboundVersion}"/>
        <echo message="Outbound version ..: ${outboundVersion}"/>
@@ -349,4 +350,74 @@ $Date: 2026-10-04 13:30:39 +0200 (Sun, 04 Oct 2026) $
        
     </target>       
     
+    <!-- #################################################################################################### -->
+    <!-- Shading task (sperimentale, non agganciato alla build) -->
+    <!-- #################################################################################################### -->
+
+    <!-- ==================================================================================================== -->
+    <!-- Riloca le librerie di terze parti incluse nel package jar prodotto dal deploy (mergeLibraries=true)   -->
+    <!--                                                                                                      -->
+    <!-- Uso: ant shade.1221 | ant shade.1412                                                                 -->
+    <!--      in ingresso il jar del deploy dello stesso giorno, oppure quello indicato con -DshadeInput=<jar> -->
+    <!--      in uscita lo stesso nome con suffisso "-shaded" (o quello indicato con -DshadeOutput=<jar>)      -->
+    <!--                                                                                                      -->
+    <!-- jarjar (fork jarjar-abrams) riscrive il bytecode: rinomina i package indicati dalle regole e aggiorna -->
+    <!-- i riferimenti di tutte le classi del jar (provider, osb-commons e librerie), compresi i nomi di classe -->
+    <!-- scritti come stringa (es. Class.forName). Il codice sorgente non cambia e compila con le librerie     -->
+    <!-- originali: cambia solo il bytecode del jar consegnato.                                               -->
+    <!--                                                                                                      -->
+    <!-- Sintassi degli elementi annidati (vale la prima regola che corrisponde a una classe):                 -->
+    <!--   <rule pattern="a.b.**" result="x.y.@1"/>  rinomina; "**" = qualsiasi parte del nome (anche con     -->
+    <!--                                             punti), "*" = un solo segmento, "@1","@2" = parti        -->
+    <!--                                             catturate da sinistra a destra, "@0" = nome completo      -->
+    <!--   <zap  pattern="a.b.**"/>                  elimina le classi corrispondenti (prima delle rule)      -->
+    <!--   <keep pattern="a.b.**"/>                  se presente, conserva solo le classi raggiungibili da     -->
+    <!--                                             quelle indicate e scarta tutte le altre                  -->
+    <!--                                                                                                      -->
+    <!-- Escluse dalle regole: Rhino (genera bytecode a runtime con i nomi originali dei package e si rompe    -->
+    <!-- se rilocato), commons-logging (fornito da WebLogic), Nimbus (gia' rilocato in org.nimbusds sul target -->
+    <!-- 12.2.1, fornito da WebLogic sul target 14.1.2).                                                       -->
+    <!-- ==================================================================================================== -->
+    <target name="shade" depends="target.auto,prepare">
+
+       <!-- parametri dello shading -->
+       <property name="shadePrefix" value="org.falpi.shaded"/>
+       <property name="shadeInput"  value="${deployDir}/${outputFileName}.jar"/>
+       <property name="shadeOutput" value="${deployDir}/${outputFileName}-shaded.jar"/>
+       
+       <echo message="Shade input .......: ${shadeInput}"/>
+       <echo message="Shade output ......: ${shadeOutput}"/>
+       <echo message="Shade prefix ......: ${shadePrefix}"/>
+
+       <!-- lo shading ha senso solo sul package con le librerie incluse -->
+       <fail unless:true="${mergeLibraries}" message="Shading requires mergeLibraries=true"/>
+       <fail message="Package jar not found: ${shadeInput} (run deploy first or pass -DshadeInput=...)">
+          <condition><not><available file="${shadeInput}"/></not></condition>
+       </fail>
+
+       <!-- carica il task jarjar (jar monolitico con ASM + task Ant) -->
+       <taskdef name="jarjar" classname="com.eed3si9n.jarjar.JarJarTask">
+          <classpath>
+             <pathelement location="${libDir}/jarjar-assembly-1.14.1.jar"/>
+             <pathelement location="${libDir}/ant-jarjar-1.14.1.jar"/>
+          </classpath>
+       </taskdef>
+
+       <!-- crea il jar rilocato (filesetmanifest="merge" conserva il manifest del package letto da getPackageTitle) -->
+       <jarjar destfile="${shadeOutput}" filesetmanifest="merge">
+          <zipfileset src="${shadeInput}"/>
+          <rule pattern="org.apache.http.**"          result="${shadePrefix}.org.apache.http.@1"/>
+          <rule pattern="org.apache.commons.codec.**" result="${shadePrefix}.org.apache.commons.codec.@1"/>
+          <rule pattern="org.json.**"                 result="${shadePrefix}.org.json.@1"/>
+          <rule pattern="com.google.gson.**"          result="${shadePrefix}.com.google.gson.@1"/>
+          <rule pattern="com.google.crypto.tink.**"   result="${shadePrefix}.com.google.crypto.tink.@1"/>
+       </jarjar>
+
+       <echo message="Shaded Jar"></echo>
+
+    </target>
+
+    <target name="shade.1221" depends="target.1221,shade"/>
+    <target name="shade.1412" depends="target.1412,shade"/>
+
 </project>
